@@ -18,56 +18,69 @@
   --radius:10px;
 }
 body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#222}
+
 /* ── NAV ─────────────────────────────────────────── */
 #navbar{
   background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue-med) 100%);
-  color:#fff;padding:0 24px;height:62px;display:flex;align-items:center;
-  justify-content:space-between;box-shadow:var(--shadow);position:sticky;top:0;z-index:1000
+  color:#fff;padding:0 24px;min-height:62px;display:flex;align-items:center;
+  justify-content:space-between;box-shadow:var(--shadow);position:sticky;top:0;z-index:1000;
+  flex-wrap:wrap;gap:8px
 }
-#navbar .brand{display:flex;align-items:center;gap:12px}
-#navbar .brand .logo{width:36px;height:36px;background:#fff;border-radius:8px;
+#navbar .brand{display:flex;align-items:center;gap:12px;padding:10px 0}
+#navbar .brand .logo{width:36px;height:36px;flex-shrink:0;background:#fff;border-radius:8px;
   display:flex;align-items:center;justify-content:center;font-size:20px}
 #navbar .brand h1{font-size:17px;font-weight:700;line-height:1.2}
 #navbar .brand p{font-size:11px;opacity:.8}
-#navbar .nav-right{display:flex;align-items:center;gap:16px}
+#navbar .nav-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0}
 .badge{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
-  border-radius:20px;padding:4px 12px;font-size:12px;display:flex;align-items:center;gap:6px}
-.pulse{width:8px;height:8px;background:#4CAF50;border-radius:50%;animation:pulse 1.5s infinite}
+  border-radius:20px;padding:4px 12px;font-size:12px;display:flex;align-items:center;gap:6px;
+  white-space:nowrap}
+.pulse{width:8px;height:8px;background:#4CAF50;border-radius:50%;animation:pulse 1.5s infinite;flex-shrink:0}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+
 /* ── STATS BAR ───────────────────────────────────── */
 #stats-bar{
-  background:#fff;border-bottom:1px solid #dde;padding:12px 24px;
-  display:flex;gap:24px;overflow-x:auto;flex-wrap:wrap
+  background:#fff;border-bottom:1px solid #dde;padding:10px 24px;
+  display:flex;gap:12px;overflow-x:auto;flex-wrap:nowrap;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none
 }
+#stats-bar::-webkit-scrollbar{display:none}
 .stat-card{
   display:flex;align-items:center;gap:10px;background:var(--gray-bg);
-  border-radius:8px;padding:8px 16px;min-width:140px;border-left:4px solid var(--blue-med)
+  border-radius:8px;padding:8px 14px;min-width:130px;flex-shrink:0;
+  border-left:4px solid var(--blue-med)
 }
-.stat-card .icon{font-size:22px}
+.stat-card .icon{font-size:20px}
 .stat-card .info{display:flex;flex-direction:column}
-.stat-card .info .val{font-size:18px;font-weight:700;color:var(--blue-dark)}
+.stat-card .info .val{font-size:17px;font-weight:700;color:var(--blue-dark)}
 .stat-card .info .lbl{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px}
-.stat-card.green{border-color:var(--green)}
-.stat-card.green .val{color:var(--green)}
-.stat-card.orange{border-color:var(--orange)}
-.stat-card.orange .val{color:var(--orange)}
+.stat-card.green{border-color:var(--green)}.stat-card.green .val{color:var(--green)}
+.stat-card.orange{border-color:var(--orange)}.stat-card.orange .val{color:var(--orange)}
+
 /* ── TABS ────────────────────────────────────────── */
-#tabs{background:#fff;border-bottom:2px solid #dde;padding:0 24px;display:flex;gap:4px}
+#tabs{
+  background:#fff;border-bottom:2px solid #dde;padding:0 16px;
+  display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none
+}
+#tabs::-webkit-scrollbar{display:none}
 .tab-btn{
-  padding:12px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;
+  padding:12px 18px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;
   color:#666;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.2s;
-  display:flex;align-items:center;gap:7px
+  display:flex;align-items:center;gap:7px;white-space:nowrap;flex-shrink:0
 }
 .tab-btn:hover{color:var(--blue-med)}
 .tab-btn.active{color:var(--blue-dark);border-bottom-color:var(--blue-dark);font-weight:700}
+
 /* ── MAIN ────────────────────────────────────────── */
-#main{padding:20px 24px;min-height:calc(100vh - 140px)}
+#main{padding:16px 24px;min-height:calc(100vh - 140px)}
 .tab-panel{display:none;animation:fadeIn .25s}
 .tab-panel.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
 /* ── MAP TAB ─────────────────────────────────────── */
-#map-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;height:calc(100vh - 220px)}
-#map{border-radius:var(--radius);box-shadow:var(--shadow);min-height:400px}
+#map-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;height:calc(100vh - 230px)}
+#map{border-radius:var(--radius);box-shadow:var(--shadow);min-height:380px}
 #parking-list{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
   overflow-y:auto;padding:16px}
 #parking-list h3{font-size:14px;color:var(--blue-dark);font-weight:700;margin-bottom:12px;
@@ -78,25 +91,24 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#22
 }
 .park-item:hover{background:var(--gray-bg)}
 .park-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.park-info{flex:1}
-.park-name{font-weight:600;font-size:12px;color:#333}
-.park-meta{font-size:11px;color:#888;display:flex;gap:8px;margin-top:2px}
+.park-info{flex:1;min-width:0}
+.park-name{font-weight:600;font-size:12px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.park-meta{font-size:11px;color:#888;display:flex;gap:8px;margin-top:2px;flex-wrap:wrap}
 .occ-bar{height:4px;border-radius:2px;background:#eee;margin-top:3px;overflow:hidden}
 .occ-fill{height:100%;border-radius:2px;transition:width .5s}
+
 /* ── RECOMMEND TAB ───────────────────────────────── */
-#rec-layout{display:grid;grid-template-columns:1fr 400px;gap:16px;height:calc(100vh-220px)}
-#rec-map{border-radius:var(--radius);box-shadow:var(--shadow)}
+#rec-layout{display:grid;grid-template-columns:1fr 400px;gap:16px;height:calc(100vh - 230px)}
+#rec-map{border-radius:var(--radius);box-shadow:var(--shadow);min-height:320px}
 #rec-panel{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;overflow-y:auto}
 .mode-btn{
-  flex:1;padding:10px;border:2px solid #dde;border-radius:8px;cursor:pointer;
+  flex:1;padding:10px 6px;border:2px solid #dde;border-radius:8px;cursor:pointer;
   background:#fff;font-size:13px;font-weight:600;color:#555;transition:.2s;display:flex;
-  align-items:center;justify-content:center;gap:6px
+  align-items:center;justify-content:center;gap:6px;min-width:0
 }
 .mode-btn:hover,.mode-btn.active{border-color:var(--blue-med);background:var(--blue-light);color:var(--blue-dark)}
 .mode-btn.active{background:var(--blue-dark);color:#fff;border-color:var(--blue-dark)}
-.rec-card{
-  border:1px solid #dde;border-radius:8px;padding:12px;margin-bottom:8px;transition:.2s;cursor:pointer
-}
+.rec-card{border:1px solid #dde;border-radius:8px;padding:12px;margin-bottom:8px;transition:.2s;cursor:pointer}
 .rec-card:hover{border-color:var(--blue-med);background:var(--gray-bg)}
 .rec-card.best{border-color:var(--green);background:var(--green-light);border-width:2px}
 .rec-rank{
@@ -107,19 +119,25 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#22
 .rank-2{background:var(--blue-med);color:#fff}
 .rank-3{background:#7986CB;color:#fff}
 .rank-n{background:#bbb;color:#fff}
+
 /* ── METRICS TAB ─────────────────────────────────── */
-#charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* FIX: align-items:start stops cards from stretching to match row height */
+#charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .chart-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
-.chart-card h3{font-size:14px;color:var(--blue-dark);font-weight:700;margin-bottom:14px}
+.chart-card h3{font-size:14px;color:var(--blue-dark);font-weight:700;margin-bottom:12px}
+/* FIX: fixed-height wrapper — Chart.js reads this, not the canvas attribute */
+.chart-wrap{position:relative;height:220px;width:100%}
+.chart-wrap-lg{position:relative;height:180px;width:100%}
+
 /* ── FL TAB ──────────────────────────────────────── */
-#fl-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+#fl-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .fl-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
 .fl-card h3{font-size:14px;color:var(--blue-dark);font-weight:700;margin-bottom:16px}
 .fl-arch{display:flex;flex-direction:column;align-items:center;gap:10px}
-.fl-agents-row{display:flex;gap:12px;justify-content:center}
+.fl-agents-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .fl-agent-box{
-  width:90px;padding:8px;border-radius:8px;text-align:center;font-size:12px;
-  font-weight:700;border:2px solid;animation:none;transition:.3s
+  width:86px;padding:8px;border-radius:8px;text-align:center;font-size:12px;
+  font-weight:700;border:2px solid;transition:.3s
 }
 .fl-server{
   width:140px;padding:10px;border-radius:10px;text-align:center;
@@ -139,6 +157,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#22
 .metric-val.red{color:var(--red)}
 .progress-bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin-top:6px}
 .progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--blue-med),var(--blue-dark));transition:width 1s}
+.chart-wrap-epsilon{position:relative;height:120px;width:100%}
+
 /* ── MISC ────────────────────────────────────────── */
 .section-title{font-size:13px;font-weight:700;color:var(--blue-dark);margin-bottom:10px}
 .info-box{background:var(--gray-bg);border-radius:6px;padding:12px;font-size:12px;
@@ -155,9 +175,65 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#22
 .tag-blue{background:var(--blue-light);color:var(--blue-dark)}
 .tooltip{position:fixed;background:rgba(0,0,0,.85);color:#fff;padding:6px 10px;
   border-radius:6px;font-size:12px;pointer-events:none;display:none;z-index:9999}
+
+/* ── TABLET ≤ 900px ──────────────────────────────── */
 @media(max-width:900px){
-  #map-layout,#rec-layout,#charts-grid,#fl-layout{grid-template-columns:1fr}
-  #parking-list{max-height:300px}
+  #map-layout{grid-template-columns:1fr;height:auto}
+  #map{height:52vw;min-height:300px}
+  #parking-list{max-height:280px}
+  #rec-layout{grid-template-columns:1fr;height:auto}
+  #rec-map{height:52vw;min-height:300px}
+  #charts-grid{grid-template-columns:1fr}
+  #fl-layout{grid-template-columns:1fr}
+  #navbar .brand h1{font-size:15px}
+}
+
+/* ── MOBILE ≤ 640px ──────────────────────────────── */
+@media(max-width:640px){
+  #navbar{padding:0 14px;gap:6px}
+  #navbar .brand p{display:none}
+  #navbar .brand h1{font-size:14px}
+  #navbar .nav-right .badge-hide{display:none}
+  .badge{font-size:11px;padding:3px 9px}
+
+  #stats-bar{padding:8px 12px;gap:8px}
+  .stat-card{min-width:110px;padding:6px 10px}
+  .stat-card .icon{font-size:17px}
+  .stat-card .info .val{font-size:15px}
+  .stat-card .info .lbl{font-size:9px}
+
+  #tabs{padding:0 8px}
+  .tab-btn{padding:10px 12px;font-size:12px;gap:4px}
+
+  #main{padding:10px 12px}
+
+  #map{height:60vw;min-height:260px}
+  #rec-map{height:60vw;min-height:260px}
+  #parking-list{max-height:240px}
+
+  .chart-wrap{height:190px}
+  .chart-wrap-lg{height:150px}
+  .chart-wrap-epsilon{height:100px}
+
+  .fl-agent-box{width:calc(50% - 6px);font-size:11px;padding:6px}
+  .fl-server{width:120px;font-size:12px}
+  .fl-round-badge{font-size:12px;padding:5px 12px}
+  .metric-row{font-size:12px}
+  .mode-btn{font-size:12px;padding:8px 4px}
+  .rec-card{padding:10px}
+  .tag{font-size:10px;padding:2px 6px}
+}
+
+/* ── SMALL PHONE ≤ 400px ─────────────────────────── */
+@media(max-width:400px){
+  #navbar .brand h1{font-size:13px}
+  .badge{font-size:10px;padding:3px 7px}
+  #main{padding:8px}
+  .chart-wrap{height:165px}
+  .chart-wrap-lg{height:130px}
+  .tab-btn{padding:9px 10px;font-size:11px}
+  .stat-card{min-width:95px;padding:5px 8px}
+  .stat-card .info .val{font-size:13px}
 }
 </style>
 </head>
@@ -174,9 +250,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#22
   </div>
   <div class="nav-right">
     <div class="badge"><span class="pulse"></span><span>Live</span></div>
-    <div class="badge">⏱ Step: <span id="nav-step">0</span></div>
-    <div class="badge">🚦 Pression: <span id="nav-pressure">1.00</span></div>
-    <div class="badge" style="background:rgba(255,255,255,.1)">USTHB 2025–2026</div>
+    <div class="badge">⏱ <span id="nav-step">0</span></div>
+    <div class="badge badge-hide">🚦 <span id="nav-pressure">1.00</span></div>
+    <div class="badge badge-hide" style="background:rgba(255,255,255,.1)">USTHB 2025–2026</div>
   </div>
 </nav>
 
@@ -277,25 +353,25 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#22
     <div id="charts-grid">
       <div class="chart-card">
         <h3>📊 Occupation globale en temps réel</h3>
-        <canvas id="chart-occ" height="180"></canvas>
+        <div class="chart-wrap"><canvas id="chart-occ"></canvas></div>
       </div>
       <div class="chart-card">
         <h3>🏆 Récompense cumulée par agent (Round 2)</h3>
-        <canvas id="chart-reward" height="180"></canvas>
+        <div class="chart-wrap"><canvas id="chart-reward"></canvas></div>
       </div>
       <div class="chart-card">
         <h3>🚗 Affectations par agent (FIT)</h3>
-        <canvas id="chart-assigned" height="180"></canvas>
+        <div class="chart-wrap"><canvas id="chart-assigned"></canvas></div>
       </div>
       <div class="chart-card">
         <h3>📉 Convergence Loss DQN par agent</h3>
-        <canvas id="chart-loss" height="180"></canvas>
+        <div class="chart-wrap"><canvas id="chart-loss"></canvas></div>
       </div>
     </div>
     <div style="margin-top:16px">
       <div class="chart-card">
         <h3>🅿 Occupation actuelle par parking (temps réel)</h3>
-        <canvas id="chart-parking-occ" height="100"></canvas>
+        <div class="chart-wrap-lg"><canvas id="chart-parking-occ"></canvas></div>
       </div>
     </div>
   </div>
@@ -362,7 +438,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#22
 
         <div style="margin-top:18px">
           <div class="section-title">Epsilon decay</div>
-          <canvas id="chart-epsilon" height="100"></canvas>
+          <div class="chart-wrap-epsilon"><canvas id="chart-epsilon"></canvas></div>
         </div>
       </div>
     </div>
