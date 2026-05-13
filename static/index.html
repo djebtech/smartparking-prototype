@@ -1,829 +1,1275 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SmartParking AI — Edge V2X Dashboard</title>
+<title>SmartParking AI — Edge V2X</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
+/* ── DESIGN TOKENS ────────────────────────────────── */
 :root{
-  --blue-dark:#1F3864;--blue-med:#2E74B5;--blue-light:#BDD7EE;
-  --green:#1E7D45;--green-light:#E8F5E9;
-  --orange:#E65100;--red:#C62828;
-  --gray-bg:#F5F7FA;--white:#FFFFFF;
-  --shadow:0 2px 12px rgba(0,0,0,.12);
-  --radius:10px;
+  --navy:       #0F1E35;
+  --navy-light: #1A2F50;
+  --blue:       #2563EB;
+  --blue-soft:  #EFF6FF;
+  --green:      #059669;
+  --green-soft: #ECFDF5;
+  --amber:      #D97706;
+  --amber-soft: #FFFBEB;
+  --red:        #DC2626;
+  --red-soft:   #FEF2F2;
+  --bg:         #F1F5F9;
+  --surface:    #FFFFFF;
+  --border:     #E2E8F0;
+  --border-md:  #CBD5E1;
+  --text-1:     #0F172A;
+  --text-2:     #475569;
+  --text-3:     #94A3B8;
+  --mono:       'JetBrains Mono', 'Fira Code', monospace;
+  --sans:       'Inter', system-ui, sans-serif;
+  --radius-sm:  6px;
+  --radius:     10px;
+  --radius-lg:  14px;
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.07);
+  --shadow:     0 4px 20px rgba(0,0,0,.07);
 }
-body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray-bg);color:#222}
 
-/* ── NAV ─────────────────────────────────────────── */
+/* ── RESET ────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--text-1);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased
+}
+
+/* ── NAVBAR ───────────────────────────────────────── */
 #navbar{
-  background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue-med) 100%);
-  color:#fff;padding:0 24px;min-height:62px;display:flex;align-items:center;
-  justify-content:space-between;box-shadow:var(--shadow);position:sticky;top:0;z-index:1000;
-  flex-wrap:wrap;gap:8px
+  background:var(--navy);
+  height:56px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 28px;
+  position:sticky;
+  top:0;
+  z-index:1000;
+  border-bottom:1px solid rgba(255,255,255,.07)
 }
-#navbar .brand{display:flex;align-items:center;gap:12px;padding:10px 0}
-#navbar .brand .logo{width:36px;height:36px;flex-shrink:0;background:#fff;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;font-size:20px}
-#navbar .brand h1{font-size:17px;font-weight:700;line-height:1.2}
-#navbar .brand p{font-size:11px;opacity:.8}
-#navbar .nav-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0}
-.badge{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
-  border-radius:20px;padding:4px 12px;font-size:12px;display:flex;align-items:center;gap:6px;
-  white-space:nowrap}
-.pulse{width:8px;height:8px;background:#4CAF50;border-radius:50%;animation:pulse 1.5s infinite;flex-shrink:0}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.nav-brand{display:flex;align-items:center;gap:14px}
+.nav-logo{
+  width:32px;height:32px;
+  background:var(--blue);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:13px;font-weight:600;color:#fff;
+  flex-shrink:0
+}
+.nav-title{
+  display:flex;flex-direction:column;gap:1px
+}
+.nav-title h1{font-size:14px;font-weight:700;color:#fff;letter-spacing:-.2px}
+.nav-title p{font-size:11px;color:rgba(255,255,255,.45);font-weight:400}
+.nav-right{display:flex;align-items:center;gap:8px}
+.nav-pill{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;padding:4px 12px;
+  font-size:11.5px;color:rgba(255,255,255,.75);
+  font-family:var(--mono);white-space:nowrap
+}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#10B981;flex-shrink:0;
+  animation:livepulse 1.8s ease-in-out infinite
+}
+@keyframes livepulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
 
-/* ── STATS BAR ───────────────────────────────────── */
-#stats-bar{
-  background:#fff;border-bottom:1px solid #dde;padding:10px 24px;
-  display:flex;gap:12px;overflow-x:auto;flex-wrap:nowrap;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none
+/* ── STATS STRIP ──────────────────────────────────── */
+#stats-strip{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 28px;
+  display:flex;align-items:center;
+  gap:0;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none
 }
-#stats-bar::-webkit-scrollbar{display:none}
-.stat-card{
-  display:flex;align-items:center;gap:10px;background:var(--gray-bg);
-  border-radius:8px;padding:8px 14px;min-width:130px;flex-shrink:0;
-  border-left:4px solid var(--blue-med)
+#stats-strip::-webkit-scrollbar{display:none}
+.sstat{
+  display:flex;flex-direction:column;
+  padding:10px 20px;
+  border-right:1px solid var(--border);
+  flex-shrink:0;min-width:110px
 }
-.stat-card .icon{font-size:20px}
-.stat-card .info{display:flex;flex-direction:column}
-.stat-card .info .val{font-size:17px;font-weight:700;color:var(--blue-dark)}
-.stat-card .info .lbl{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px}
-.stat-card.green{border-color:var(--green)}.stat-card.green .val{color:var(--green)}
-.stat-card.orange{border-color:var(--orange)}.stat-card.orange .val{color:var(--orange)}
+.sstat:first-child{padding-left:0}
+.sstat:last-child{border-right:none}
+.sstat .sv{
+  font-family:var(--mono);font-size:20px;font-weight:600;
+  color:var(--text-1);line-height:1
+}
+.sstat .sv.green{color:var(--green)}
+.sstat .sv.amber{color:var(--amber)}
+.sstat .sl{
+  font-size:10px;font-weight:500;letter-spacing:.6px;
+  text-transform:uppercase;color:var(--text-3);margin-top:4px
+}
 
-/* ── TABS ────────────────────────────────────────── */
-#tabs{
-  background:#fff;border-bottom:2px solid #dde;padding:0 16px;
-  display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  scrollbar-width:none
+/* ── TABS ─────────────────────────────────────────── */
+#tab-bar{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 28px;
+  display:flex;gap:0;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none
 }
-#tabs::-webkit-scrollbar{display:none}
-.tab-btn{
-  padding:12px 18px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;
-  color:#666;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.2s;
-  display:flex;align-items:center;gap:7px;white-space:nowrap;flex-shrink:0
+#tab-bar::-webkit-scrollbar{display:none}
+.tb{
+  padding:13px 18px;
+  border:none;background:none;cursor:pointer;
+  font-family:var(--sans);font-size:13px;font-weight:500;
+  color:var(--text-3);
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:color .18s,border-color .18s;
+  white-space:nowrap;flex-shrink:0
 }
-.tab-btn:hover{color:var(--blue-med)}
-.tab-btn.active{color:var(--blue-dark);border-bottom-color:var(--blue-dark);font-weight:700}
+.tb:hover{color:var(--text-2)}
+.tb.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
 
-/* ── MAIN ────────────────────────────────────────── */
-#main{padding:16px 24px;min-height:calc(100vh - 140px)}
-.tab-panel{display:none;animation:fadeIn .25s}
-.tab-panel.active{display:block}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+/* ── MAIN CONTENT ─────────────────────────────────── */
+#main{padding:20px 28px}
+.tab-panel{display:none}
+.tab-panel.active{display:block;animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 
-/* ── MAP TAB ─────────────────────────────────────── */
-#map-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;height:calc(100vh - 230px)}
-#map{border-radius:var(--radius);box-shadow:var(--shadow);min-height:380px}
-#parking-list{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
-  overflow-y:auto;padding:16px}
-#parking-list h3{font-size:14px;color:var(--blue-dark);font-weight:700;margin-bottom:12px;
-  padding-bottom:8px;border-bottom:2px solid var(--blue-light)}
-.park-item{
-  display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:6px;
-  cursor:pointer;transition:.15s;margin-bottom:4px;font-size:13px
+/* ── CARD ─────────────────────────────────────────── */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm)
 }
-.park-item:hover{background:var(--gray-bg)}
-.park-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.park-info{flex:1;min-width:0}
-.park-name{font-weight:600;font-size:12px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.park-meta{font-size:11px;color:#888;display:flex;gap:8px;margin-top:2px;flex-wrap:wrap}
-.occ-bar{height:4px;border-radius:2px;background:#eee;margin-top:3px;overflow:hidden}
-.occ-fill{height:100%;border-radius:2px;transition:width .5s}
+.card-head{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between
+}
+.card-head h3{font-size:13px;font-weight:600;color:var(--text-1);letter-spacing:-.1px}
+.card-body{padding:20px}
 
-/* ── RECOMMEND TAB ───────────────────────────────── */
-#rec-layout{display:grid;grid-template-columns:1fr 400px;gap:16px;height:calc(100vh - 230px)}
-#rec-map{border-radius:var(--radius);box-shadow:var(--shadow);min-height:320px}
-#rec-panel{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;overflow-y:auto}
-.mode-btn{
-  flex:1;padding:10px 6px;border:2px solid #dde;border-radius:8px;cursor:pointer;
-  background:#fff;font-size:13px;font-weight:600;color:#555;transition:.2s;display:flex;
-  align-items:center;justify-content:center;gap:6px;min-width:0
+/* ── STATUS DOT ───────────────────────────────────── */
+.dot{
+  display:inline-block;width:8px;height:8px;
+  border-radius:50%;flex-shrink:0
 }
-.mode-btn:hover,.mode-btn.active{border-color:var(--blue-med);background:var(--blue-light);color:var(--blue-dark)}
-.mode-btn.active{background:var(--blue-dark);color:#fff;border-color:var(--blue-dark)}
-.rec-card{border:1px solid #dde;border-radius:8px;padding:12px;margin-bottom:8px;transition:.2s;cursor:pointer}
-.rec-card:hover{border-color:var(--blue-med);background:var(--gray-bg)}
-.rec-card.best{border-color:var(--green);background:var(--green-light);border-width:2px}
-.rec-rank{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;flex-shrink:0
-}
-.rank-1{background:var(--green);color:#fff}
-.rank-2{background:var(--blue-med);color:#fff}
-.rank-3{background:#7986CB;color:#fff}
-.rank-n{background:#bbb;color:#fff}
+.dot-green{background:var(--green)}
+.dot-amber{background:var(--amber)}
+.dot-red{background:var(--red)}
+.dot-gray{background:var(--text-3)}
 
-/* ── METRICS TAB ─────────────────────────────────── */
-/* FIX: align-items:start stops cards from stretching to match row height */
-#charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
-.chart-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
-.chart-card h3{font-size:14px;color:var(--blue-dark);font-weight:700;margin-bottom:12px}
-/* FIX: fixed-height wrapper — Chart.js reads this, not the canvas attribute */
-.chart-wrap{position:relative;height:220px;width:100%}
-.chart-wrap-lg{position:relative;height:180px;width:100%}
+/* ── STATUS BADGE ─────────────────────────────────── */
+.sbadge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500
+}
+.sbadge.green{background:var(--green-soft);color:var(--green)}
+.sbadge.amber{background:var(--amber-soft);color:var(--amber)}
+.sbadge.red{background:var(--red-soft);color:var(--red)}
+.sbadge.blue{background:var(--blue-soft);color:var(--blue)}
 
-/* ── FL TAB ──────────────────────────────────────── */
-#fl-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
-.fl-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
-.fl-card h3{font-size:14px;color:var(--blue-dark);font-weight:700;margin-bottom:16px}
-.fl-arch{display:flex;flex-direction:column;align-items:center;gap:10px}
-.fl-agents-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.fl-agent-box{
-  width:86px;padding:8px;border-radius:8px;text-align:center;font-size:12px;
-  font-weight:700;border:2px solid;transition:.3s
+/* ── BUTTONS ──────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:9px 18px;border-radius:var(--radius-sm);
+  font-family:var(--sans);font-size:13px;font-weight:600;
+  cursor:pointer;border:none;transition:.18s;white-space:nowrap
 }
-.fl-server{
-  width:140px;padding:10px;border-radius:10px;text-align:center;
-  background:var(--blue-dark);color:#fff;font-size:13px;font-weight:700
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#1D4ED8}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--border-md)}
+.btn-ghost.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* ── OCC BAR ──────────────────────────────────────── */
+.occ-track{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.occ-fill{height:100%;border-radius:2px;transition:width .4s}
+
+/* ── RANGE SLIDER ─────────────────────────────────── */
+.slider-wrap{position:relative;padding:4px 0}
+input[type=range]{
+  width:100%;-webkit-appearance:none;appearance:none;
+  height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer
 }
-.fl-arrow{font-size:22px;color:var(--blue-med);text-align:center}
-.fl-round-badge{
-  display:inline-flex;align-items:center;gap:8px;background:var(--blue-dark);
-  color:#fff;border-radius:20px;padding:6px 16px;font-size:13px;font-weight:600;margin-bottom:12px
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--blue);border:2px solid #fff;
+  box-shadow:0 0 0 1px var(--blue);cursor:pointer
 }
-.metric-row{display:flex;justify-content:space-between;align-items:center;
-  padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+input[type=range]::-moz-range-thumb{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--blue);border:2px solid #fff;cursor:pointer
+}
+
+/* ── MODE SELECTOR ────────────────────────────────── */
+.mode-row{display:flex;gap:6px}
+.mode-opt{
+  flex:1;padding:8px 6px;border-radius:var(--radius-sm);
+  border:1.5px solid var(--border);background:var(--surface);
+  font-family:var(--sans);font-size:12px;font-weight:500;
+  color:var(--text-2);cursor:pointer;text-align:center;transition:.18s
+}
+.mode-opt:hover{border-color:var(--blue);color:var(--blue)}
+.mode-opt.active{border-color:var(--blue);background:var(--blue);color:#fff}
+
+/* ─────────────────────────────────────────────────────
+   TAB 1 — OVERVIEW (MAP)
+───────────────────────────────────────────────────── */
+#tab-overview .layout{
+  display:grid;grid-template-columns:1fr 300px;gap:16px;
+  height:calc(100vh - 200px)
+}
+#map-main{border-radius:var(--radius-lg);border:1px solid var(--border);min-height:380px}
+#park-sidebar{
+  display:flex;flex-direction:column;gap:0;
+  overflow:hidden;border-radius:var(--radius-lg);
+  border:1px solid var(--border);background:var(--surface)
+}
+#park-sidebar .sidebar-head{
+  padding:14px 16px;border-bottom:1px solid var(--border);
+  font-size:12px;font-weight:600;color:var(--text-1);
+  display:flex;align-items:center;justify-content:space-between
+}
+#park-list{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.park-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .15s
+}
+.park-row:hover{background:var(--bg)}
+.park-row:last-child{border-bottom:none}
+.pr-info{flex:1;min-width:0}
+.pr-name{font-size:12px;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-meta{font-size:11px;color:var(--text-3);margin-top:2px;font-family:var(--mono)}
+.pr-pct{font-family:var(--mono);font-size:12px;font-weight:600;flex-shrink:0}
+
+/* ─────────────────────────────────────────────────────
+   TAB 2 — FIND PARKING (CLIENT SEARCH)
+───────────────────────────────────────────────────── */
+#tab-search .layout{
+  display:grid;grid-template-columns:340px 1fr;gap:16px;
+  height:calc(100vh - 200px)
+}
+#search-panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow-y:auto;
+  -webkit-overflow-scrolling:touch
+}
+#search-map{
+  border-radius:var(--radius-lg);border:1px solid var(--border);
+  min-height:380px
+}
+.form-group{padding:16px 20px;border-bottom:1px solid var(--border)}
+.form-group:last-of-type{border-bottom:none}
+.form-label{
+  font-size:11px;font-weight:600;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--text-3);margin-bottom:8px;
+  display:flex;align-items:center;justify-content:space-between
+}
+.form-label span{
+  font-family:var(--mono);font-size:12px;color:var(--blue);
+  text-transform:none;letter-spacing:0;font-weight:600
+}
+.search-pos-display{
+  font-family:var(--mono);font-size:12px;color:var(--text-2);
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:8px
+}
+
+/* Winner card */
+.winner-card{
+  border:1.5px solid var(--green);
+  border-radius:var(--radius);
+  background:var(--green-soft);
+  padding:16px;margin:0 20px 0;
+}
+.winner-label{
+  font-size:10px;font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;color:var(--green);margin-bottom:8px
+}
+.winner-name{font-size:15px;font-weight:700;color:var(--text-1);margin-bottom:4px}
+.winner-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.wm-item{display:flex;flex-direction:column;gap:1px}
+.wm-val{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text-1)}
+.wm-lbl{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px}
+
+/* Top-K list */
+.topk-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 20px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .15s
+}
+.topk-item:hover{background:var(--bg)}
+.topk-rank{
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  flex-shrink:0;background:var(--bg);color:var(--text-2)
+}
+.topk-rank.r1{background:var(--green);color:#fff}
+.topk-rank.r2{background:var(--blue);color:#fff}
+.topk-rank.r3{background:#7C3AED;color:#fff}
+.topk-info{flex:1;min-width:0}
+.topk-name{font-size:12px;font-weight:600;color:var(--text-1)}
+.topk-sub{font-size:11px;color:var(--text-3);font-family:var(--mono)}
+.topk-price{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text-2);flex-shrink:0}
+
+/* ─────────────────────────────────────────────────────
+   TAB 3 — RECOMMEND
+───────────────────────────────────────────────────── */
+#tab-recommend .layout{
+  display:grid;grid-template-columns:1fr 380px;gap:16px;
+  height:calc(100vh - 200px)
+}
+#rec-map{border-radius:var(--radius-lg);border:1px solid var(--border);min-height:380px}
+#rec-panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow-y:auto;padding:20px;
+  -webkit-overflow-scrolling:touch
+}
+.rec-card{
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px;margin-bottom:8px;cursor:pointer;transition:.18s
+}
+.rec-card:hover{border-color:var(--blue);background:var(--blue-soft)}
+.rec-card.best{border-color:var(--green);background:var(--green-soft);border-width:1.5px}
+.rec-rank-badge{
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;flex-shrink:0
+}
+.rr1{background:var(--green);color:#fff}
+.rr2{background:var(--blue);color:#fff}
+.rr3{background:#7C3AED;color:#fff}
+.rrn{background:var(--border);color:var(--text-2)}
+
+/* ─────────────────────────────────────────────────────
+   TAB 4 — ANALYTICS
+───────────────────────────────────────────────────── */
+#tab-analytics .charts-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:16px;align-items:start
+}
+.chart-wrap{position:relative;height:210px;width:100%}
+.chart-wrap-wide{position:relative;height:170px;width:100%}
+.chart-wrap-sm{position:relative;height:120px;width:100%}
+
+/* ─────────────────────────────────────────────────────
+   TAB 5 — FEDERATED AI
+───────────────────────────────────────────────────── */
+#tab-fl .fl-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.fl-arch-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0}
+.fl-server-node{
+  background:var(--navy);color:#fff;
+  border-radius:var(--radius);padding:12px 24px;
+  text-align:center;font-size:13px;font-weight:600
+}
+.fl-server-node small{display:block;font-size:10px;opacity:.6;margin-top:2px;font-weight:400}
+.fl-arrow-down{width:1px;height:20px;background:var(--border-md);margin:0 auto;position:relative}
+.fl-arrow-down::after{content:'';position:absolute;bottom:-4px;left:-3px;border:4px solid transparent;border-top-color:var(--border-md)}
+.fl-agents-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.fl-agent-node{
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px;text-align:center;font-size:12px;font-weight:600;
+  color:var(--text-1);background:var(--bg);transition:.2s
+}
+.fl-agent-node.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue)}
+.metric-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--border);font-size:13px
+}
 .metric-row:last-child{border:none}
-.metric-label{color:#666}
-.metric-val{font-weight:700;color:var(--blue-dark)}
-.metric-val.green{color:var(--green)}
-.metric-val.red{color:var(--red)}
-.progress-bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin-top:6px}
-.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--blue-med),var(--blue-dark));transition:width 1s}
-.chart-wrap-epsilon{position:relative;height:120px;width:100%}
-
-/* ── MISC ────────────────────────────────────────── */
-.section-title{font-size:13px;font-weight:700;color:var(--blue-dark);margin-bottom:10px}
-.info-box{background:var(--gray-bg);border-radius:6px;padding:12px;font-size:12px;
-  color:#555;margin-top:8px;border-left:3px solid var(--blue-med)}
-.btn-primary{
-  background:var(--blue-dark);color:#fff;border:none;padding:10px 20px;border-radius:8px;
-  cursor:pointer;font-size:14px;font-weight:600;transition:.2s;display:inline-flex;align-items:center;gap:8px
+.ml{color:var(--text-2)}
+.mv{font-family:var(--mono);font-weight:600;color:var(--text-1)}
+.mv.green{color:var(--green)}
+.mv.red{color:var(--red)}
+.round-btn{
+  padding:7px 14px;border-radius:var(--radius-sm);
+  border:1.5px solid var(--border);background:var(--surface);
+  font-size:12px;font-weight:600;color:var(--text-2);cursor:pointer;transition:.18s
 }
-.btn-primary:hover{background:var(--blue-med)}
-.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
-.tag-green{background:#E8F5E9;color:var(--green)}
-.tag-orange{background:#FFF3E0;color:var(--orange)}
-.tag-red{background:#FFEBEE;color:var(--red)}
-.tag-blue{background:var(--blue-light);color:var(--blue-dark)}
-.tooltip{position:fixed;background:rgba(0,0,0,.85);color:#fff;padding:6px 10px;
-  border-radius:6px;font-size:12px;pointer-events:none;display:none;z-index:9999}
+.round-btn.active{border-color:var(--blue);background:var(--blue);color:#fff}
+.loss-row{margin-bottom:10px}
+.loss-row-header{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.loss-agent{font-weight:600;color:var(--text-1)}
+.loss-delta{font-family:var(--mono);font-size:11px;color:var(--green)}
+.loss-bars{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.loss-bar-wrap{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.loss-bar-fill{height:100%;border-radius:4px}
+.fl-table{width:100%;border-collapse:collapse;font-size:12px}
+.fl-table th{
+  padding:8px 12px;background:var(--bg);color:var(--text-2);
+  font-weight:600;font-size:11px;letter-spacing:.3px;
+  border-bottom:1.5px solid var(--border);text-align:left
+}
+.fl-table td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.fl-table tr:last-child td{border:none}
+.fl-table tr:hover td{background:var(--bg)}
 
-/* ── TABLET ≤ 900px ──────────────────────────────── */
+/* ── INFO BOX ─────────────────────────────────────── */
+.info-box{
+  background:var(--bg);border:1px solid var(--border);
+  border-left:3px solid var(--blue);border-radius:var(--radius-sm);
+  padding:12px;font-size:12px;color:var(--text-2)
+}
+.empty-state{
+  text-align:center;padding:40px 20px;color:var(--text-3)
+}
+.empty-state .es-icon{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--bg);border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 12px;font-size:18px;color:var(--text-3)
+}
+.empty-state p{font-size:13px}
+.section-label{
+  font-size:10px;font-weight:700;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--text-3);margin-bottom:10px
+}
+.divider{height:1px;background:var(--border);margin:0 20px}
+
+/* ── RESPONSIVE ───────────────────────────────────── */
+/* Tablet ≤ 900px */
 @media(max-width:900px){
-  #map-layout{grid-template-columns:1fr;height:auto}
-  #map{height:52vw;min-height:300px}
-  #parking-list{max-height:280px}
-  #rec-layout{grid-template-columns:1fr;height:auto}
-  #rec-map{height:52vw;min-height:300px}
-  #charts-grid{grid-template-columns:1fr}
-  #fl-layout{grid-template-columns:1fr}
-  #navbar .brand h1{font-size:15px}
+  #tab-overview .layout,
+  #tab-search .layout,
+  #tab-recommend .layout,
+  #tab-analytics .charts-grid,
+  #tab-fl .fl-grid{
+    grid-template-columns:1fr;height:auto
+  }
+  #map-main,#search-map,#rec-map{height:55vw;min-height:280px}
+  #park-sidebar{max-height:280px}
 }
 
-/* ── MOBILE ≤ 640px ──────────────────────────────── */
+/* Phone ≤ 640px */
 @media(max-width:640px){
-  #navbar{padding:0 14px;gap:6px}
-  #navbar .brand p{display:none}
-  #navbar .brand h1{font-size:14px}
-  #navbar .nav-right .badge-hide{display:none}
-  .badge{font-size:11px;padding:3px 9px}
+  #navbar{padding:0 16px}
+  .nav-title p{display:none}
+  .nav-title h1{font-size:13px}
+  .nav-pill.hide-sm{display:none}
+  .nav-right{gap:6px}
+  .nav-pill{padding:3px 9px;font-size:11px}
 
-  #stats-bar{padding:8px 12px;gap:8px}
-  .stat-card{min-width:110px;padding:6px 10px}
-  .stat-card .icon{font-size:17px}
-  .stat-card .info .val{font-size:15px}
-  .stat-card .info .lbl{font-size:9px}
+  #stats-strip{padding:0 12px}
+  .sstat{padding:8px 12px;min-width:90px}
+  .sstat .sv{font-size:16px}
+  .sstat .sl{font-size:9px}
 
-  #tabs{padding:0 8px}
-  .tab-btn{padding:10px 12px;font-size:12px;gap:4px}
+  #tab-bar{padding:0 12px}
+  .tb{padding:11px 12px;font-size:12px}
 
-  #main{padding:10px 12px}
+  #main{padding:12px}
 
-  #map{height:60vw;min-height:260px}
-  #rec-map{height:60vw;min-height:260px}
-  #parking-list{max-height:240px}
+  #map-main,#search-map,#rec-map{height:60vw;min-height:240px}
+  #park-sidebar{max-height:220px}
 
-  .chart-wrap{height:190px}
-  .chart-wrap-lg{height:150px}
-  .chart-wrap-epsilon{height:100px}
+  #tab-search .layout{grid-template-columns:1fr}
+  #search-panel{max-height:none}
 
-  .fl-agent-box{width:calc(50% - 6px);font-size:11px;padding:6px}
-  .fl-server{width:120px;font-size:12px}
-  .fl-round-badge{font-size:12px;padding:5px 12px}
-  .metric-row{font-size:12px}
-  .mode-btn{font-size:12px;padding:8px 4px}
-  .rec-card{padding:10px}
-  .tag{font-size:10px;padding:2px 6px}
+  #tab-analytics .charts-grid{grid-template-columns:1fr}
+  .chart-wrap{height:185px}
+  .chart-wrap-wide{height:140px}
+
+  #tab-fl .fl-grid{grid-template-columns:1fr}
+  .fl-agents-grid{grid-template-columns:1fr 1fr}
+
+  .mode-row{gap:4px}
+  .mode-opt{font-size:11px;padding:7px 4px}
+  .winner-meta{gap:10px}
+  .form-group{padding:12px 16px}
+  .winner-card{margin:0 16px}
+  .topk-item{padding:9px 16px}
 }
 
-/* ── SMALL PHONE ≤ 400px ─────────────────────────── */
+/* Small phone ≤ 400px */
 @media(max-width:400px){
-  #navbar .brand h1{font-size:13px}
-  .badge{font-size:10px;padding:3px 7px}
+  .nav-title h1{font-size:12px}
   #main{padding:8px}
-  .chart-wrap{height:165px}
-  .chart-wrap-lg{height:130px}
-  .tab-btn{padding:9px 10px;font-size:11px}
-  .stat-card{min-width:95px;padding:5px 8px}
-  .stat-card .info .val{font-size:13px}
+  .tb{padding:10px 10px;font-size:11px}
+  .sstat{min-width:80px;padding:7px 10px}
+  .sstat .sv{font-size:14px}
+  #map-main,#search-map,#rec-map{height:65vw;min-height:200px}
+  .chart-wrap{height:160px}
 }
 </style>
 </head>
 <body>
 
-<!-- NAVBAR -->
+<!-- ══════════════════════════════════════════════════
+     NAVBAR
+══════════════════════════════════════════════════ -->
 <nav id="navbar">
-  <div class="brand">
-    <div class="logo">🅿</div>
-    <div>
-      <h1>SmartParking AI — Edge V2X</h1>
-      <p>Dueling DQN · Federated Learning · SUMO Luxembourg</p>
+  <div class="nav-brand">
+    <div class="nav-logo">SP</div>
+    <div class="nav-title">
+      <h1>SmartParking AI</h1>
+      <p>Edge V2X · Dueling DQN · Federated Learning</p>
     </div>
   </div>
   <div class="nav-right">
-    <div class="badge"><span class="pulse"></span><span>Live</span></div>
-    <div class="badge">⏱ <span id="nav-step">0</span></div>
-    <div class="badge badge-hide">🚦 <span id="nav-pressure">1.00</span></div>
-    <div class="badge badge-hide" style="background:rgba(255,255,255,.1)">USTHB 2025–2026</div>
+    <div class="nav-pill"><span class="live-dot"></span>Live</div>
+    <div class="nav-pill">Step <span id="nav-step" style="margin-left:4px">0</span></div>
+    <div class="nav-pill hide-sm">P <span id="nav-pressure" style="margin-left:4px">1.00</span></div>
+    <div class="nav-pill hide-sm" style="opacity:.5">USTHB 2026</div>
   </div>
 </nav>
 
-<!-- STATS BAR -->
-<div id="stats-bar">
-  <div class="stat-card green">
-    <div class="icon">🟢</div>
-    <div class="info"><span class="val" id="stat-free">—</span><span class="lbl">Places libres</span></div>
+<!-- ══════════════════════════════════════════════════
+     STATS STRIP
+══════════════════════════════════════════════════ -->
+<div id="stats-strip">
+  <div class="sstat">
+    <span class="sv green" id="st-free">—</span>
+    <span class="sl">Free Slots</span>
   </div>
-  <div class="stat-card">
-    <div class="icon">📊</div>
-    <div class="info"><span class="val" id="stat-occ">—</span><span class="lbl">Occupation globale</span></div>
+  <div class="sstat">
+    <span class="sv" id="st-occ">—</span>
+    <span class="sl">Occupancy</span>
   </div>
-  <div class="stat-card orange">
-    <div class="icon">🚗</div>
-    <div class="info"><span class="val" id="stat-assigned">0</span><span class="lbl">Véhicules affectés</span></div>
+  <div class="sstat">
+    <span class="sv amber" id="st-assigned">0</span>
+    <span class="sl">Assigned</span>
   </div>
-  <div class="stat-card">
-    <div class="icon">🤖</div>
-    <div class="info"><span class="val">4</span><span class="lbl">Agents Edge actifs</span></div>
+  <div class="sstat">
+    <span class="sv">4</span>
+    <span class="sl">Edge Agents</span>
   </div>
-  <div class="stat-card">
-    <div class="icon">🅿️</div>
-    <div class="info"><span class="val">28</span><span class="lbl">Parkings gérés</span></div>
+  <div class="sstat">
+    <span class="sv">28</span>
+    <span class="sl">Parkings</span>
   </div>
-  <div class="stat-card">
-    <div class="icon">🏙️</div>
-    <div class="info"><span class="val">2000</span><span class="lbl">Capacité totale</span></div>
+  <div class="sstat">
+    <span class="sv">2 000</span>
+    <span class="sl">Capacity</span>
   </div>
 </div>
 
-<!-- TABS -->
-<div id="tabs">
-  <button class="tab-btn active" onclick="showTab('map')">🗺️ Carte Live</button>
-  <button class="tab-btn" onclick="showTab('recommend')">🎯 Recommandation</button>
-  <button class="tab-btn" onclick="showTab('metrics')">📈 Métriques</button>
-  <button class="tab-btn" onclick="showTab('fl')">🧠 Federated Learning</button>
+<!-- ══════════════════════════════════════════════════
+     TAB BAR
+══════════════════════════════════════════════════ -->
+<div id="tab-bar">
+  <button class="tb active" onclick="showTab('overview')">Overview</button>
+  <button class="tb" onclick="showTab('search')">Find Parking</button>
+  <button class="tb" onclick="showTab('recommend')">Recommend</button>
+  <button class="tb" onclick="showTab('analytics')">Analytics</button>
+  <button class="tb" onclick="showTab('fl')">Federated AI</button>
 </div>
 
-<!-- MAIN -->
+<!-- ══════════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════════ -->
 <div id="main">
 
-  <!-- ── TAB MAP ──────────────────────────────────────────────────────── -->
-  <div id="tab-map" class="tab-panel active">
-    <div id="map-layout">
-      <div id="map"></div>
-      <div id="parking-list">
-        <h3>🅿 État des Parkings</h3>
-        <div id="park-items"></div>
+<!-- ── TAB: OVERVIEW ────────────────────────────── -->
+<div id="tab-overview" class="tab-panel active">
+  <div class="layout">
+    <div id="map-main"></div>
+    <div id="park-sidebar">
+      <div class="sidebar-head">
+        <span>Parking Network</span>
+        <span id="sidebar-count" style="font-family:var(--mono);font-size:11px;color:var(--text-3)">28 locations</span>
       </div>
+      <div id="park-list"></div>
     </div>
   </div>
+</div>
 
-  <!-- ── TAB RECOMMEND ────────────────────────────────────────────────── -->
-  <div id="tab-recommend" class="tab-panel">
-    <div id="rec-layout">
-      <div id="rec-map"></div>
-      <div id="rec-panel">
-        <div class="section-title">🎯 Moteur de Recommandation DQN</div>
-        <div class="info-box" style="margin-bottom:14px">
-          Cliquez sur la carte pour positionner votre véhicule, choisissez votre mode et obtenez la recommandation du meilleur parking via Dueling DQN.
+<!-- ── TAB: FIND PARKING ─────────────────────────── -->
+<div id="tab-search" class="tab-panel">
+  <div class="layout">
+
+    <!-- Left: search panel -->
+    <div id="search-panel">
+
+      <div class="card-head" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+        <h3>Find a Parking Spot</h3>
+        <span class="sbadge blue">AI Search</span>
+      </div>
+
+      <!-- Position -->
+      <div class="form-group">
+        <div class="form-label">Your position</div>
+        <div class="search-pos-display" id="search-pos-txt">Click on the map to set position</div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:6px" onclick="useMyLocation()">
+          Use my location
+        </button>
+      </div>
+
+      <!-- Radius -->
+      <div class="form-group">
+        <div class="form-label">
+          Search radius
+          <span id="radius-val">500 m</span>
         </div>
+        <input type="range" min="100" max="2000" step="50" value="500" id="s-radius"
+               oninput="document.getElementById('radius-val').textContent=this.value+' m'"/>
+      </div>
 
-        <div class="section-title">Mode de préférence</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button class="mode-btn active" onclick="setMode('close')" id="mode-close">
-            📍 Proche
-          </button>
-          <button class="mode-btn" onclick="setMode('cheap')" id="mode-cheap">
-            💰 Économique
-          </button>
-          <button class="mode-btn" onclick="setMode('balanced')" id="mode-balanced">
-            ⚖️ Équilibré
-          </button>
+      <!-- Max price -->
+      <div class="form-group">
+        <div class="form-label">
+          Max price
+          <span id="price-val">4.00 €/h</span>
         </div>
+        <input type="range" min="1.5" max="7" step="0.5" value="4" id="s-price"
+               oninput="document.getElementById('price-val').textContent=parseFloat(this.value).toFixed(2)+' €/h'"/>
+      </div>
 
-        <div id="rec-position" class="info-box" style="margin-bottom:12px">
-          📍 Position : <em>Cliquez sur la carte</em>
-        </div>
-
-        <div id="rec-result" style="display:none">
-          <div id="rec-agent-badge" style="margin-bottom:10px"></div>
-          <div class="section-title">Top-5 Candidats (DQN)</div>
-          <div id="rec-cards"></div>
-          <div id="rec-traffic" class="info-box" style="margin-top:10px;font-size:12px"></div>
-        </div>
-
-        <div id="rec-empty" style="text-align:center;padding:30px;color:#aaa">
-          <div style="font-size:36px;margin-bottom:8px">📍</div>
-          Aucun véhicule positionné
+      <!-- Mode -->
+      <div class="form-group">
+        <div class="form-label" style="margin-bottom:10px">Preference mode</div>
+        <div class="mode-row">
+          <button class="mode-opt" id="sm-close" onclick="setSearchMode('close')">Nearest</button>
+          <button class="mode-opt active" id="sm-balanced" onclick="setSearchMode('balanced')">Balanced</button>
+          <button class="mode-opt" id="sm-cheap" onclick="setSearchMode('cheap')">Cheapest</button>
         </div>
       </div>
+
+      <!-- Search button -->
+      <div class="form-group" style="border-bottom:none">
+        <button class="btn btn-primary" style="width:100%" onclick="doSearch()">Search</button>
+      </div>
+
+      <!-- Results -->
+      <div id="search-results" style="display:none">
+        <div class="divider"></div>
+
+        <!-- Winner -->
+        <div style="padding:16px 0 12px">
+          <div class="section-label" style="padding:0 20px;margin-bottom:12px">Best Match</div>
+          <div class="winner-card" id="winner-card"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Top 5 -->
+        <div style="padding:12px 0 6px">
+          <div class="section-label" style="padding:0 20px;margin-bottom:0">Top Candidates</div>
+        </div>
+        <div id="topk-list"></div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="search-empty" class="empty-state">
+        <div class="es-icon">+</div>
+        <p>Click the map or use your location<br>to start searching</p>
+      </div>
+
+    </div>
+
+    <!-- Right: map -->
+    <div id="search-map"></div>
+
+  </div>
+</div>
+
+<!-- ── TAB: RECOMMEND ────────────────────────────── -->
+<div id="tab-recommend" class="tab-panel">
+  <div class="layout">
+    <div id="rec-map"></div>
+    <div id="rec-panel">
+
+      <div class="section-label">DQN Recommendation Engine</div>
+      <div class="info-box" style="margin-bottom:16px">
+        Click the map to place your vehicle, choose a mode, and the Dueling DQN agent returns the optimal parking.
+      </div>
+
+      <div class="section-label" style="margin-bottom:8px">Preference mode</div>
+      <div class="mode-row" style="margin-bottom:16px">
+        <button class="mode-opt active" id="mode-close" onclick="setMode('close')">Nearest</button>
+        <button class="mode-opt" id="mode-balanced" onclick="setMode('balanced')">Balanced</button>
+        <button class="mode-opt" id="mode-cheap" onclick="setMode('cheap')">Cheapest</button>
+      </div>
+
+      <div id="rec-position" style="font-family:var(--mono);font-size:12px;color:var(--text-3);margin-bottom:14px">
+        Position: not set
+      </div>
+
+      <div id="rec-result" style="display:none">
+        <div id="rec-agent-badge" style="margin-bottom:12px"></div>
+        <div class="section-label" style="margin-bottom:8px">Top-5 Candidates</div>
+        <div id="rec-cards"></div>
+        <div id="rec-traffic" style="font-size:11px;color:var(--text-3);margin-top:10px;font-family:var(--mono)"></div>
+      </div>
+
+      <div id="rec-empty" class="empty-state">
+        <div class="es-icon">P</div>
+        <p>No vehicle placed yet</p>
+      </div>
+
     </div>
   </div>
+</div>
 
-  <!-- ── TAB METRICS ──────────────────────────────────────────────────── -->
-  <div id="tab-metrics" class="tab-panel">
-    <div id="charts-grid">
-      <div class="chart-card">
-        <h3>📊 Occupation globale en temps réel</h3>
-        <div class="chart-wrap"><canvas id="chart-occ"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>🏆 Récompense cumulée par agent (Round 2)</h3>
-        <div class="chart-wrap"><canvas id="chart-reward"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>🚗 Affectations par agent (FIT)</h3>
-        <div class="chart-wrap"><canvas id="chart-assigned"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>📉 Convergence Loss DQN par agent</h3>
-        <div class="chart-wrap"><canvas id="chart-loss"></canvas></div>
-      </div>
+<!-- ── TAB: ANALYTICS ────────────────────────────── -->
+<div id="tab-analytics" class="tab-panel">
+  <div class="charts-grid">
+    <div class="card">
+      <div class="card-head"><h3>Global Occupancy — Live</h3></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-occ"></canvas></div></div>
     </div>
-    <div style="margin-top:16px">
-      <div class="chart-card">
-        <h3>🅿 Occupation actuelle par parking (temps réel)</h3>
-        <div class="chart-wrap-lg"><canvas id="chart-parking-occ"></canvas></div>
-      </div>
+    <div class="card">
+      <div class="card-head"><h3>Cumulative Reward by Agent (Round 2)</h3></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-reward"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Assignments per Agent — FIT</h3></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-assigned"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>DQN Loss Convergence</h3></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-loss"></canvas></div></div>
     </div>
   </div>
+  <div style="margin-top:16px">
+    <div class="card">
+      <div class="card-head"><h3>Per-Parking Occupancy — Live</h3></div>
+      <div class="card-body"><div class="chart-wrap-wide"><canvas id="chart-parking-occ"></canvas></div></div>
+    </div>
+  </div>
+</div>
 
-  <!-- ── TAB FL ────────────────────────────────────────────────────────── -->
-  <div id="tab-fl" class="tab-panel">
-    <div id="fl-layout">
-      <!-- Architecture visuelle -->
-      <div class="fl-card">
-        <h3>🏗️ Architecture Federated Learning</h3>
-        <div class="fl-arch">
-          <div class="fl-server">🖥️ Serveur Flower<br><small style="opacity:.8;font-size:10px">FedAvg • 2 rounds • gRPC:8080</small></div>
-          <div class="fl-arrow" id="fl-arrow">⬇️</div>
-          <div class="fl-agents-row">
-            <div class="fl-agent-box" id="fl-box-a1" style="border-color:#1F3864;color:#1F3864;background:#EAF0FF">
-              🤖 Agent 1<br><small>Zone NE</small>
-            </div>
-            <div class="fl-agent-box" id="fl-box-a2" style="border-color:#2E74B5;color:#2E74B5;background:#EEF4FB">
-              🤖 Agent 2<br><small>Zone Centre</small>
-            </div>
-            <div class="fl-agent-box" id="fl-box-a3" style="border-color:#0070C0;color:#0070C0;background:#EBF5FF">
-              🤖 Agent 3<br><small>Zone Sud</small>
-            </div>
-            <div class="fl-agent-box" id="fl-box-a4" style="border-color:#375623;color:#375623;background:#EBF5EC">
-              🤖 Agent 4<br><small>Zone Ouest</small>
-            </div>
+<!-- ── TAB: FEDERATED AI ──────────────────────────── -->
+<div id="tab-fl" class="tab-panel">
+  <div class="fl-grid">
+
+    <!-- Architecture card -->
+    <div class="card">
+      <div class="card-head"><h3>Federated Learning Architecture</h3></div>
+      <div class="card-body">
+        <div class="fl-arch-wrap">
+          <div class="fl-server-node">
+            Flower Server — FedAvg
+            <small>2 rounds · gRPC :8080 · fraction_fit 1.0</small>
           </div>
-          <div style="font-size:11px;color:#888;margin-top:8px;text-align:center">
-            Chaque agent entraîne son Dueling DQN localement (1500 steps)<br>
-            puis envoie ses poids au serveur pour agrégation
+          <div class="fl-arrow-down"></div>
+          <div class="fl-agents-grid">
+            <div class="fl-agent-node" id="fl-n1">Agent 1<br><span style="font-weight:400;font-size:10px;color:var(--text-3)">Zone Nord-Est</span></div>
+            <div class="fl-agent-node" id="fl-n2">Agent 2<br><span style="font-weight:400;font-size:10px;color:var(--text-3)">Zone Centre</span></div>
+            <div class="fl-agent-node" id="fl-n3">Agent 3<br><span style="font-weight:400;font-size:10px;color:var(--text-3)">Zone Sud</span></div>
+            <div class="fl-agent-node" id="fl-n4">Agent 4<br><span style="font-weight:400;font-size:10px;color:var(--text-3)">Zone Ouest</span></div>
           </div>
+          <p style="font-size:11px;color:var(--text-3);text-align:center;margin-top:4px">
+            Each agent trains its Dueling DQN locally (1 500 steps)<br>then sends weights for FedAvg aggregation
+          </p>
         </div>
-
-        <div style="margin-top:20px">
-          <div class="section-title">Paramètres du pipeline FL</div>
-          <div class="metric-row"><span class="metric-label">Stratégie</span><span class="metric-val">FedAvg</span></div>
-          <div class="metric-row"><span class="metric-label">Rounds</span><span class="metric-val">2</span></div>
-          <div class="metric-row"><span class="metric-label">fraction_fit</span><span class="metric-val">1.0 (tous)</span></div>
-          <div class="metric-row"><span class="metric-label">Steps/round</span><span class="metric-val">1 500</span></div>
-          <div class="metric-row"><span class="metric-label">Durée totale</span><span class="metric-val">12 936 s (≈ 3h35)</span></div>
-          <div class="metric-row"><span class="metric-label">Optimizer</span><span class="metric-val">Adam (lr=3×10⁻⁴)</span></div>
-          <div class="metric-row"><span class="metric-label">γ (gamma)</span><span class="metric-val">0.90</span></div>
-          <div class="metric-row"><span class="metric-label">Batch size</span><span class="metric-val">64</span></div>
-          <div class="metric-row"><span class="metric-label">Buffer capacity</span><span class="metric-val">50 000</span></div>
+        <div style="margin-top:16px">
+          <div class="section-label" style="margin-bottom:0">Pipeline Parameters</div>
+          <div class="metric-row"><span class="ml">Strategy</span><span class="mv">FedAvg</span></div>
+          <div class="metric-row"><span class="ml">Rounds</span><span class="mv">2</span></div>
+          <div class="metric-row"><span class="ml">Steps / round</span><span class="mv">1 500</span></div>
+          <div class="metric-row"><span class="ml">Total runtime</span><span class="mv">12 936 s (≈ 3h35)</span></div>
+          <div class="metric-row"><span class="ml">Optimizer</span><span class="mv">Adam lr=3×10⁻⁴</span></div>
+          <div class="metric-row"><span class="ml">γ (gamma)</span><span class="mv">0.90</span></div>
+          <div class="metric-row"><span class="ml">Batch size</span><span class="mv">64</span></div>
+          <div class="metric-row"><span class="ml">Buffer capacity</span><span class="mv">50 000</span></div>
         </div>
       </div>
+    </div>
 
-      <!-- Métriques FL -->
-      <div class="fl-card">
-        <h3>📊 Résultats des Rounds d'Entraînement</h3>
-
-        <!-- Round selector -->
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button class="mode-btn active" onclick="selectRound(1)" id="fl-r1-btn">Round 1 (ε=0.90)</button>
-          <button class="mode-btn" onclick="selectRound(2)" id="fl-r2-btn">Round 2 (ε=0.72)</button>
+    <!-- Results card -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Training Results</h3>
+        <div style="display:flex;gap:6px">
+          <button class="round-btn active" id="fl-r1" onclick="selectRound(1)">Round 1</button>
+          <button class="round-btn" id="fl-r2" onclick="selectRound(2)">Round 2</button>
         </div>
-
+      </div>
+      <div class="card-body">
         <div id="fl-round-detail"></div>
-
-        <div style="margin-top:18px">
-          <div class="section-title">Réduction de la Loss (R1 → R2)</div>
+        <div style="margin-top:16px">
+          <div class="section-label" style="margin-bottom:12px">Loss Reduction R1 → R2</div>
           <div id="fl-loss-bars"></div>
         </div>
-
-        <div style="margin-top:18px">
-          <div class="section-title">Epsilon decay</div>
-          <div class="chart-wrap-epsilon"><canvas id="chart-epsilon"></canvas></div>
+        <div style="margin-top:16px">
+          <div class="section-label" style="margin-bottom:10px">Epsilon Decay</div>
+          <div class="chart-wrap-sm"><canvas id="chart-epsilon"></canvas></div>
         </div>
       </div>
     </div>
 
-    <!-- Tableau des résultats complets -->
-    <div class="fl-card" style="margin-top:16px">
-      <h3>📋 Tableau Complet des Métriques par Agent</h3>
-      <div style="overflow-x:auto">
-        <table id="fl-table" style="width:100%;border-collapse:collapse;font-size:13px"></table>
-      </div>
+  </div>
+
+  <!-- Full table -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-head"><h3>Complete Metrics per Agent</h3></div>
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table class="fl-table" id="fl-table"></table>
     </div>
   </div>
+</div>
 
 </div><!-- /main -->
 
-<div class="tooltip" id="tooltip"></div>
-
+<!-- ══════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════ -->
 <script>
-// ═══════════════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════════════
-let cfg = null;          // config from /api/config
-let state = null;        // live state from /api/state
-let selMode = 'close';
-let recPos = null;       // {lat,lon} for recommendation
-let mapMain = null;      // Leaflet main map
-let mapRec  = null;      // Leaflet recommendation map
-let recMarker = null;
-let recLayers = [];
-let chartOcc, chartReward, chartAssigned, chartLoss, chartParkingOcc, chartEpsilon;
-let occHistory = [];
-let flData = null;
+// ── STATE ──────────────────────────────────────────
+let cfg = null, state = null, flData = null;
+let mapMain = null, mapRec = null, mapSearch = null;
+let recMarker = null, recLayers = [], recPos = null;
+let searchMarker = null, searchLayers = [], searchPos = null;
+let selMode = 'close', selSearchMode = 'balanced';
 let activeRound = 1;
+let occHistory = [];
+let chartOcc, chartReward, chartAssigned, chartLoss, chartParkingOcc, chartEpsilon;
+const parkMarkersMain = {}, parkMarkersSearch = {};
 
-// Colors per agent
 const AGENT_COLORS = {
-  agent_1:'#1F3864', agent_2:'#2E74B5', agent_3:'#0070C0', agent_4:'#375623'
+  agent_1:'#1E40AF', agent_2:'#2563EB', agent_3:'#0891B2', agent_4:'#059669'
 };
 
-// ─── TABS ──────────────────────────────────────────────────────
-function showTab(name) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+// ── STATUS HELPERS ─────────────────────────────────
+function statusColor(s){
+  return s==='full'?'#DC2626':s==='high'?'#D97706':s==='medium'?'#F59E0B':'#059669'
+}
+function statusLabel(s){
+  return s==='full'?'Full':s==='high'?'High':s==='medium'?'Medium':'Available'
+}
+function statusClass(s){
+  return s==='full'?'red':s==='high'?'amber':s==='medium'?'amber':'green'
+}
+
+// ── TABS ───────────────────────────────────────────
+function showTab(name){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  document.querySelectorAll('.tab-btn').forEach(b => {
+  document.querySelectorAll('.tb').forEach(b=>{
     if(b.getAttribute('onclick').includes("'"+name+"'")) b.classList.add('active');
   });
-  if(name==='map' && mapMain) { setTimeout(()=>mapMain.invalidateSize(),100); }
-  if(name==='recommend' && mapRec) { setTimeout(()=>mapRec.invalidateSize(),100); }
-  if(name==='metrics') { buildCharts(); }
-  if(name==='fl') { renderFL(); }
+  if(name==='overview' && mapMain) setTimeout(()=>mapMain.invalidateSize(),100);
+  if(name==='recommend' && mapRec) setTimeout(()=>mapRec.invalidateSize(),100);
+  if(name==='search' && mapSearch) setTimeout(()=>mapSearch.invalidateSize(),100);
+  if(name==='analytics') buildCharts();
+  if(name==='fl') renderFL();
 }
 
-// ─── INIT ──────────────────────────────────────────────────────
-async function init() {
-  try {
-    const [cfgRes, flRes] = await Promise.all([
-      fetch('/api/config'), fetch('/api/fl')
-    ]);
+// ── INIT ───────────────────────────────────────────
+async function init(){
+  try{
+    const [cfgRes, flRes] = await Promise.all([fetch('/api/config'), fetch('/api/fl')]);
     cfg = await cfgRes.json();
     flData = await flRes.json();
-
     initMainMap();
     initRecMap();
+    initSearchMap();
     startPolling();
-  } catch(e) {
-    console.error('Init error:', e);
-  }
+  } catch(e){ console.error('Init error:',e); }
 }
 
-// ─── MAIN MAP ──────────────────────────────────────────────────
-function initMainMap() {
-  mapMain = L.map('map').setView([49.619, 6.133], 13);
+// ── MAIN MAP (Overview) ────────────────────────────
+function initMainMap(){
+  mapMain = L.map('map-main').setView([49.619,6.133],13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap',maxZoom:18
   }).addTo(mapMain);
-
-  // Agent zone circles
-  Object.entries(cfg.agents).forEach(([id,a]) => {
-    L.circle([a.lat,a.lon], {
-      radius: a.radius_m, color: a.color, fill: true,
-      fillColor: a.color, fillOpacity: 0.06, weight: 2, dashArray:'6,4'
-    }).addTo(mapMain).bindPopup(
-      `<b>${a.name}</b><br>Capacité: ${a.capacity} places<br>Traffic score: ${a.traffic_score}`
-    );
-    L.marker([a.lat,a.lon], {icon: L.divIcon({
-      html: `<div style="background:${a.color};color:#fff;border-radius:50%;width:32px;height:32px;
-              display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
-              border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)">🤖</div>`,
-      iconSize:[32,32], iconAnchor:[16,16], className:''
-    })}).addTo(mapMain).bindPopup(`<b>${id}</b><br>${a.name}`);
+  Object.entries(cfg.agents).forEach(([id,a])=>{
+    L.circle([a.lat,a.lon],{
+      radius:a.radius_m, color:AGENT_COLORS[id], fill:true,
+      fillColor:AGENT_COLORS[id], fillOpacity:0.05, weight:1.5, dashArray:'5,4'
+    }).addTo(mapMain).bindPopup(`<b>${a.name}</b><br>${a.capacity} spots`);
   });
 }
 
-function statusColor(s) {
-  return s==='full'?'#C62828':s==='high'?'#E65100':s==='medium'?'#F9A825':'#1E7D45';
-}
-
-const parkMarkers = {};
-function updateMainMap() {
+function updateMainMap(){
   if(!state||!cfg) return;
-  const pkgs = state.parkings;
-
-  Object.entries(pkgs).forEach(([pid,ps]) => {
+  Object.entries(state.parkings).forEach(([pid,ps])=>{
     const info = cfg.parkings[pid];
-    const col = statusColor(ps.status);
+    const col  = statusColor(ps.status);
+    const pct  = Math.round(ps.occ_ratio*100);
     const html = `<div style="background:${col};color:#fff;border-radius:50%;width:22px;height:22px;
-      display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
-      border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer">${Math.round(ps.occ_ratio*100)}%</div>`;
-    const icon = L.divIcon({html, iconSize:[22,22], iconAnchor:[11,11], className:''});
-
-    if(parkMarkers[pid]) {
-      parkMarkers[pid].setIcon(icon);
+      display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;
+      border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer;font-family:monospace">${pct}</div>`;
+    const icon = L.divIcon({html,iconSize:[22,22],iconAnchor:[11,11],className:''});
+    if(parkMarkersMain[pid]){
+      parkMarkersMain[pid].setIcon(icon);
     } else {
-      parkMarkers[pid] = L.marker([info.lat,info.lon],{icon}).addTo(mapMain);
+      parkMarkersMain[pid] = L.marker([info.lat,info.lon],{icon}).addTo(mapMain);
     }
-    const agentName = cfg.agents[info.agent]?.name || info.agent;
-    parkMarkers[pid].bindPopup(
-      `<b>${info.name}</b><br>Agent: ${agentName}<br>
-       Libres: <b>${ps.free}</b> / ${ps.capacity}<br>
-       Occupation: <b>${Math.round(ps.occ_ratio*100)}%</b><br>
-       En route: ${ps.incoming}<br>
-       Prix: <b>${ps.price_balanced} €/h</b><br>
-       <span style="color:${col};font-weight:700">${ps.status.toUpperCase()}</span>`
+    parkMarkersMain[pid].bindPopup(
+      `<b>${info.name}</b><br>Free: <b>${ps.free}</b>/${ps.capacity}<br>Occ: <b>${pct}%</b><br>Price: <b>${ps.price_balanced} €/h</b>`
     );
   });
-
-  updateParkingList();
+  updateParkList();
 }
 
-function updateParkingList() {
+function updateParkList(){
   if(!state||!cfg) return;
-  const el = document.getElementById('park-items');
+  const el = document.getElementById('park-list');
   const sorted = Object.entries(state.parkings).sort((a,b)=>a[1].occ_ratio-b[1].occ_ratio);
   el.innerHTML = sorted.map(([pid,ps])=>{
     const info = cfg.parkings[pid];
-    const col = statusColor(ps.status);
-    return `<div class="park-item" onclick="focusPark('${pid}')">
-      <div class="park-dot" style="background:${col}"></div>
-      <div class="park-info">
-        <div class="park-name">${info.name}</div>
-        <div class="park-meta">
-          <span>🆓 ${ps.free}/${ps.capacity}</span>
-          <span>💶 ${ps.price_balanced}€</span>
-        </div>
-        <div class="occ-bar"><div class="occ-fill" style="width:${ps.occ_ratio*100}%;background:${col}"></div></div>
+    const col  = statusColor(ps.status);
+    const cls  = statusClass(ps.status);
+    const pct  = Math.round(ps.occ_ratio*100);
+    return `<div class="park-row" onclick="focusPark('${pid}')">
+      <div class="dot dot-${cls}"></div>
+      <div class="pr-info">
+        <div class="pr-name">${info.name}</div>
+        <div class="pr-meta">${ps.free}/${ps.capacity} free · ${ps.price_balanced}€</div>
+        <div class="occ-track" style="margin-top:4px"><div class="occ-fill" style="width:${pct}%;background:${col}"></div></div>
       </div>
-      <div style="font-size:11px;font-weight:700;color:${col}">${Math.round(ps.occ_ratio*100)}%</div>
+      <div class="pr-pct" style="color:${col}">${pct}%</div>
     </div>`;
   }).join('');
 }
 
-function focusPark(pid) {
+function focusPark(pid){
   const info = cfg.parkings[pid];
-  mapMain.flyTo([info.lat,info.lon],15,{animate:true,duration:.8});
-  parkMarkers[pid]?.openPopup();
+  mapMain.flyTo([info.lat,info.lon],15,{animate:true,duration:.7});
+  parkMarkersMain[pid]?.openPopup();
 }
 
-// ─── REC MAP ────────────────────────────────────────────────────
-function initRecMap() {
+// ── SEARCH MAP (Find Parking) ──────────────────────
+function initSearchMap(){
+  mapSearch = L.map('search-map').setView([49.619,6.133],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap',maxZoom:18
+  }).addTo(mapSearch);
+  Object.entries(cfg.agents).forEach(([id,a])=>{
+    L.circle([a.lat,a.lon],{
+      radius:a.radius_m, color:AGENT_COLORS[id], fill:true,
+      fillColor:AGENT_COLORS[id], fillOpacity:0.04, weight:1.5, dashArray:'5,4'
+    }).addTo(mapSearch);
+  });
+  Object.entries(cfg.parkings).forEach(([pid,info])=>{
+    const col = AGENT_COLORS[info.agent]||'#333';
+    const icon = L.divIcon({
+      html:`<div style="background:${col};color:#fff;border-radius:4px;padding:2px 5px;
+             font-size:9px;font-weight:700;white-space:nowrap;border:1px solid rgba(255,255,255,.4)">${pid}</div>`,
+      className:'',iconAnchor:[12,8]
+    });
+    L.marker([info.lat,info.lon],{icon}).addTo(mapSearch);
+  });
+  mapSearch.on('click',e=>{
+    const {lat,lng:lon} = e.latlng;
+    setSearchPosition(lat,lon);
+  });
+}
+
+function setSearchPosition(lat,lon){
+  searchPos = {lat,lon};
+  document.getElementById('search-pos-txt').textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  if(searchMarker) mapSearch.removeLayer(searchMarker);
+  searchMarker = L.marker([lat,lon],{icon:L.divIcon({
+    html:`<div style="background:var(--navy);color:#fff;border-radius:50%;width:26px;height:26px;
+           display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+           border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">Y</div>`,
+    iconSize:[26,26],iconAnchor:[13,13],className:''
+  })}).addTo(mapSearch).bindPopup('Your position').openPopup();
+}
+
+function useMyLocation(){
+  if(!navigator.geolocation){
+    alert('Geolocation not supported by your browser.');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const {latitude:lat, longitude:lon} = pos.coords;
+      setSearchPosition(lat,lon);
+      mapSearch.setView([lat,lon],14);
+    },
+    () => {
+      // Fallback to city center
+      setSearchPosition(49.619, 6.133);
+      mapSearch.setView([49.619,6.133],14);
+    }
+  );
+}
+
+function setSearchMode(m){
+  selSearchMode = m;
+  ['close','balanced','cheap'].forEach(x=>{
+    document.getElementById('sm-'+x).classList.toggle('active',x===m);
+  });
+}
+
+async function doSearch(){
+  if(!searchPos){ alert('Please set your position first.'); return; }
+  const radius = parseFloat(document.getElementById('s-radius').value);
+  const prixMax = parseFloat(document.getElementById('s-price').value);
+  try{
+    const res = await fetch('/api/v1/search',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({lat:searchPos.lat,lon:searchPos.lon,rayon_recherche:radius,prix_max:prixMax,mode:selSearchMode})
+    });
+    const data = await res.json();
+    renderSearchResults(data, radius);
+  } catch(e){ console.error(e); }
+}
+
+function renderSearchResults(data, radius){
+  document.getElementById('search-empty').style.display = 'none';
+  document.getElementById('search-results').style.display = 'block';
+
+  // Clear map layers
+  searchLayers.forEach(l=>mapSearch.removeLayer(l));
+  searchLayers = [];
+
+  // Draw search radius circle
+  const circle = L.circle([searchPos.lat,searchPos.lon],{
+    radius, color:'#2563EB', fill:true, fillColor:'#2563EB', fillOpacity:.05,
+    weight:1.5, dashArray:'6,4'
+  }).addTo(mapSearch);
+  searchLayers.push(circle);
+
+  if(!data.winner){
+    document.getElementById('winner-card').innerHTML =
+      `<p style="color:var(--text-3);font-size:12px;text-align:center;padding:8px">No parking found within this radius at this price.</p>`;
+    document.getElementById('topk-list').innerHTML = '';
+    return;
+  }
+
+  // Winner card
+  const w = data.winner;
+  const wcls = w.occ_ratio>=.75?'amber':w.occ_ratio>=.40?'amber':'green';
+  document.getElementById('winner-card').innerHTML = `
+    <div class="winner-label">Best Match · Rank 1</div>
+    <div class="winner-name">${w.name}</div>
+    <span class="sbadge ${wcls}" style="margin-bottom:6px">
+      <span class="dot dot-${wcls}"></span>${Math.round(w.occ_ratio*100)}% occupied
+    </span>
+    <div class="winner-meta">
+      <div class="wm-item"><div class="wm-val">${w.distance_m} m</div><div class="wm-lbl">Distance</div></div>
+      <div class="wm-item"><div class="wm-val">${w.price} €/h</div><div class="wm-lbl">Price</div></div>
+      <div class="wm-item"><div class="wm-val">${w.free_slots}</div><div class="wm-lbl">Free</div></div>
+      <div class="wm-item"><div class="wm-val">${w.travel_time_min} min</div><div class="wm-lbl">Walk</div></div>
+    </div>`;
+
+  // Draw winner on map
+  const wIcon = L.divIcon({
+    html:`<div style="background:#059669;color:#fff;border-radius:50%;width:28px;height:28px;
+           display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+           border:3px solid #fff;box-shadow:0 2px 8px rgba(5,150,105,.5)">1</div>`,
+    iconSize:[28,28],iconAnchor:[14,14],className:''
+  });
+  const wm = L.marker([w.lat,w.lon],{icon:wIcon}).addTo(mapSearch);
+  searchLayers.push(wm);
+  const wl = L.polyline([[searchPos.lat,searchPos.lon],[w.lat,w.lon]],{
+    color:'#059669',weight:2.5,opacity:.8
+  }).addTo(mapSearch);
+  searchLayers.push(wl);
+  mapSearch.flyTo([w.lat,w.lon],14,{duration:.6});
+
+  // Top-K list
+  const rankCls = ['r1','r2','r3','rrn','rrn'];
+  document.getElementById('topk-list').innerHTML = data.top_k.map((c,i)=>{
+    const ccls = c.occ_ratio>=.75?'red':c.occ_ratio>=.4?'amber':'green';
+    if(i>0){
+      const line = L.polyline([[searchPos.lat,searchPos.lon],[c.lat,c.lon]],{
+        color:'#94A3B8',weight:1.5,dashArray:'5,4',opacity:.6
+      }).addTo(mapSearch);
+      searchLayers.push(line);
+    }
+    return `<div class="topk-item" onclick="mapSearch.flyTo([${c.lat},${c.lon}],15)">
+      <div class="topk-rank ${rankCls[i]||'rrn'}">${i+1}</div>
+      <div class="topk-info">
+        <div class="topk-name">${c.name}</div>
+        <div class="topk-sub">${c.distance_m} m · ${c.free_slots} free · <span style="color:var(--${ccls})">${Math.round(c.occ_ratio*100)}%</span></div>
+      </div>
+      <div class="topk-price">${c.price} €</div>
+    </div>`;
+  }).join('');
+}
+
+// ── REC MAP (Recommend) ────────────────────────────
+function initRecMap(){
   mapRec = L.map('rec-map').setView([49.619,6.133],13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap',maxZoom:18
   }).addTo(mapRec);
-
-  // Agent zones
-  Object.entries(cfg.agents).forEach(([id,a]) => {
+  Object.entries(cfg.agents).forEach(([id,a])=>{
     L.circle([a.lat,a.lon],{
-      radius:a.radius_m, color:a.color, fill:true,
-      fillColor:a.color, fillOpacity:0.05, weight:1.5, dashArray:'5,4'
+      radius:a.radius_m,color:AGENT_COLORS[id],fill:true,
+      fillColor:AGENT_COLORS[id],fillOpacity:0.05,weight:1.5,dashArray:'5,4'
     }).addTo(mapRec);
   });
-
-  // Parking markers
-  Object.entries(cfg.parkings).forEach(([pid,info]) => {
-    const agColor = AGENT_COLORS[info.agent]||'#333';
+  Object.entries(cfg.parkings).forEach(([pid,info])=>{
+    const col = AGENT_COLORS[info.agent]||'#333';
     const icon = L.divIcon({
-      html:`<div style="background:${agColor};color:#fff;border-radius:3px;padding:1px 4px;
-             font-size:9px;font-weight:700;white-space:nowrap;border:1px solid #fff;
-             box-shadow:0 1px 3px rgba(0,0,0,.2)">${pid}</div>`,
-      className:'', iconAnchor:[12,8]
+      html:`<div style="background:${col};color:#fff;border-radius:4px;padding:2px 5px;
+             font-size:9px;font-weight:700;white-space:nowrap">${pid}</div>`,
+      className:'',iconAnchor:[12,8]
     });
     L.marker([info.lat,info.lon],{icon}).addTo(mapRec);
   });
-
-  mapRec.on('click', e => {
+  mapRec.on('click',e=>{
     const {lat,lng:lon} = e.latlng;
     recPos = {lat,lon};
-    document.getElementById('rec-position').innerHTML =
-      `📍 Position : <b>${lat.toFixed(4)}, ${lon.toFixed(4)}</b>`;
+    document.getElementById('rec-position').textContent = `Position: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
     if(recMarker) mapRec.removeLayer(recMarker);
     recMarker = L.marker([lat,lon],{icon:L.divIcon({
-      html:`<div style="background:#E65100;color:#fff;border-radius:50%;width:28px;height:28px;
-             display:flex;align-items:center;justify-content:center;font-size:14px;
-             border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">🚗</div>`,
-      iconSize:[28,28], iconAnchor:[14,14], className:''
-    })}).addTo(mapRec).bindPopup('Votre véhicule').openPopup();
+      html:`<div style="background:#D97706;color:#fff;border-radius:50%;width:26px;height:26px;
+             display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+             border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">V</div>`,
+      iconSize:[26,26],iconAnchor:[13,13],className:''
+    })}).addTo(mapRec);
     doRecommend();
   });
 }
 
-// ─── RECOMMENDATION ─────────────────────────────────────────────
-function setMode(m) {
+function setMode(m){
   selMode = m;
-  ['close','cheap','balanced'].forEach(x=>{
+  ['close','balanced','cheap'].forEach(x=>{
     document.getElementById('mode-'+x).classList.toggle('active',x===m);
   });
   if(recPos) doRecommend();
 }
 
-async function doRecommend() {
+async function doRecommend(){
   if(!recPos) return;
-  try {
+  try{
     const res = await fetch('/api/recommend',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({lat:recPos.lat,lon:recPos.lon,mode:selMode})
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({lat:recPos.lat,lon:recPos.lon,mode:selMode})
     });
-    const data = await res.json();
-    renderRecommendation(data);
-  } catch(e) { console.error(e); }
+    renderRecommendation(await res.json());
+  }catch(e){console.error(e);}
 }
 
-function renderRecommendation(data) {
+function renderRecommendation(data){
   document.getElementById('rec-empty').style.display = 'none';
   document.getElementById('rec-result').style.display = 'block';
-
-  const agColor = AGENT_COLORS[data.agent]||'#333';
   const agName = cfg.agents[data.agent]?.name || data.agent;
   document.getElementById('rec-agent-badge').innerHTML =
-    `<div style="display:inline-flex;align-items:center;gap:8px;background:${agColor};
-      color:#fff;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600">
-      🤖 Pris en charge par ${data.agent} (${agName})
-    </div>`;
+    `<span class="sbadge blue">${data.agent} — ${agName}</span>`;
 
-  // Clear old rec layers
-  recLayers.forEach(l=>mapRec.removeLayer(l));
-  recLayers=[];
+  recLayers.forEach(l=>mapRec.removeLayer(l)); recLayers=[];
 
-  const cards = data.top5.map((c,i) => {
-    const rankClass = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n';
+  const cards = data.top5.map((c,i)=>{
     const isBest = i===0;
-    const occPct = Math.round(c.occ_ratio*100);
-    const statusStr = c.occ_ratio>=.98?'Complet':c.occ_ratio>=.75?'Élevé':c.occ_ratio>=.4?'Moyen':'Disponible';
-    const tagClass = c.occ_ratio>=.98?'tag-red':c.occ_ratio>=.75?'tag-orange':c.occ_ratio>=.4?'tag-blue':'tag-green';
-
-    // Draw line on map
+    const cls = statusClass(c.occ_ratio>=.98?'full':c.occ_ratio>=.75?'high':c.occ_ratio>=.4?'medium':'low');
+    const rkCls = ['rr1','rr2','rr3','rrn','rrn'][i]||'rrn';
     const line = L.polyline([[recPos.lat,recPos.lon],[c.lat,c.lon]],{
-      color: isBest?'#1E7D45':'#90CAF9', weight: isBest?3:1.5, dashArray: isBest?null:'4,4', opacity:.8
+      color:isBest?'#059669':'#CBD5E1',weight:isBest?2.5:1.5,
+      dashArray:isBest?null:'5,4',opacity:.8
     }).addTo(mapRec);
     recLayers.push(line);
-
-    if(isBest) {
-      const best_icon = L.divIcon({
-        html:`<div style="background:#1E7D45;color:#fff;border-radius:50%;width:26px;height:26px;
-               display:flex;align-items:center;justify-content:center;font-size:14px;
-               border:3px solid #fff;box-shadow:0 2px 8px rgba(30,125,69,.5)">✓</div>`,
-        iconSize:[26,26], iconAnchor:[13,13], className:''
+    if(isBest){
+      const mi = L.divIcon({
+        html:`<div style="background:#059669;color:#fff;border-radius:50%;width:26px;height:26px;
+               display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+               border:3px solid #fff;box-shadow:0 2px 8px rgba(5,150,105,.5)">1</div>`,
+        iconSize:[26,26],iconAnchor:[13,13],className:''
       });
-      const m = L.marker([c.lat,c.lon],{icon:best_icon}).addTo(mapRec).openPopup();
-      recLayers.push(m);
+      recLayers.push(L.marker([c.lat,c.lon],{icon:mi}).addTo(mapRec).openPopup());
       mapRec.flyTo([c.lat,c.lon],14,{duration:.6});
     }
-
     return `<div class="rec-card${isBest?' best':''}" onclick="mapRec.flyTo([${c.lat},${c.lon}],15)">
       <div style="display:flex;align-items:flex-start;gap:8px">
-        <span class="rec-rank ${rankClass}">${c.rank}</span>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:13px;color:#222">${c.name}</div>
-          <div style="font-size:11px;color:#888;margin-top:2px">${c.agent} · ${c.distance_m} m</div>
-          <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-            <span class="tag tag-blue">📍 ${c.distance_m} m</span>
-            <span class="tag tag-blue">💶 ${c.price}€/h</span>
-            <span class="tag ${tagClass}">${statusStr} (${occPct}%)</span>
-            <span class="tag tag-blue">🆓 ${c.free_slots} places</span>
+        <div class="rec-rank-badge ${rkCls}">${c.rank}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${c.name}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;font-family:var(--mono)">${c.agent} · ${c.distance_m} m</div>
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <span class="sbadge blue">${c.distance_m} m</span>
+            <span class="sbadge blue">${c.price} €/h</span>
+            <span class="sbadge ${cls}">${c.free_slots} free</span>
           </div>
         </div>
-        ${isBest?'<span style="color:#1E7D45;font-size:18px">✅</span>':''}
+        ${isBest?'<span style="color:var(--green);font-size:16px;font-weight:700">✓</span>':''}
       </div>
     </div>`;
   }).join('');
-
-  document.getElementById('rec-cards').innerHTML = cards || '<p style="color:#aaa;text-align:center;padding:20px">Aucun parking disponible dans le rayon</p>';
-  document.getElementById('rec-traffic').innerHTML =
-    `🚦 Pression trafic : <b>${data.traffic_pressure}</b> | Mode DQN : <b>${data.mode.toUpperCase()}</b> | Step simulation : <b>${data.step}</b>`;
+  document.getElementById('rec-cards').innerHTML = cards || '<p style="color:var(--text-3);text-align:center;padding:20px">No parking available in range</p>';
+  document.getElementById('rec-traffic').textContent =
+    `Traffic: ${data.traffic_pressure} · Mode: ${data.mode.toUpperCase()} · Step: ${data.step}`;
 }
 
-// ─── CHARTS ─────────────────────────────────────────────────────
-function buildCharts() {
+// ── CHARTS ─────────────────────────────────────────
+const CHART_COLORS = ['#1E40AF','#2563EB','#0891B2','#059669'];
+
+function buildCharts(){
   if(!flData||!cfg) return;
-  buildChartReward();
-  buildChartAssigned();
-  buildChartLoss();
-  buildChartEpsilon();
-  buildFLTable();
-  buildLossBars();
+  buildChartReward(); buildChartAssigned(); buildChartLoss(); buildChartEpsilon(); buildFLTable(); buildLossBars();
 }
 
-function buildChartReward() {
-  if(chartReward) { chartReward.destroy(); chartReward=null; }
-  const agentIds=['agent_1','agent_2','agent_3','agent_4'];
-  const labels = agentIds.map(a=>cfg.agents[a].name);
-  const vals = agentIds.map(a=>flData.per_agent[a].fit[1].reward);
-  chartReward = new Chart(document.getElementById('chart-reward'), {
+function buildChartReward(){
+  if(chartReward){chartReward.destroy();chartReward=null;}
+  const ids=['agent_1','agent_2','agent_3','agent_4'];
+  chartReward = new Chart(document.getElementById('chart-reward'),{
     type:'bar',
-    data:{
-      labels,
-      datasets:[{
-        label:'Récompense (Round 2)',
-        data:vals,
-        backgroundColor:agentIds.map(a=>AGENT_COLORS[a]+'CC'),
-        borderColor:agentIds.map(a=>AGENT_COLORS[a]),
-        borderWidth:2, borderRadius:6
-      }]
-    },
-    options:{plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true,grid:{color:'#f0f0f0'}}},
-      responsive:true, maintainAspectRatio:false}
+    data:{labels:ids.map(a=>cfg.agents[a].name.replace('Zone ','')),
+      datasets:[{label:'Reward R2',data:ids.map(a=>flData.per_agent[a].fit[1].reward),
+        backgroundColor:CHART_COLORS.map(c=>c+'CC'),borderColor:CHART_COLORS,
+        borderWidth:1.5,borderRadius:5}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#F1F5F9'}}},
+      responsive:true,maintainAspectRatio:false}
   });
 }
 
-function buildChartAssigned() {
-  if(chartAssigned) { chartAssigned.destroy(); chartAssigned=null; }
-  const agentIds=['agent_1','agent_2','agent_3','agent_4'];
-  const labels=['Round 1','Round 2'];
-  const datasets = agentIds.map(a=>({
-    label: cfg.agents[a].name,
-    data: flData.per_agent[a].fit.map(r=>r.assigned),
-    borderColor: AGENT_COLORS[a], backgroundColor: AGENT_COLORS[a]+'33',
-    borderWidth:2, pointRadius:5, tension:.3, fill:false
-  }));
+function buildChartAssigned(){
+  if(chartAssigned){chartAssigned.destroy();chartAssigned=null;}
+  const ids=['agent_1','agent_2','agent_3','agent_4'];
   chartAssigned = new Chart(document.getElementById('chart-assigned'),{
-    type:'line', data:{labels, datasets},
-    options:{plugins:{legend:{position:'bottom'}},
-      scales:{y:{beginAtZero:false,grid:{color:'#f0f0f0'}}},
-      responsive:true, maintainAspectRatio:false}
+    type:'line',
+    data:{labels:['Round 1','Round 2'],datasets:ids.map((a,i)=>({
+      label:cfg.agents[a].name.replace('Zone ',''),
+      data:flData.per_agent[a].fit.map(r=>r.assigned),
+      borderColor:CHART_COLORS[i],backgroundColor:CHART_COLORS[i]+'22',
+      borderWidth:2,pointRadius:5,tension:.3,fill:false}))},
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},
+      scales:{y:{beginAtZero:false,grid:{color:'#F1F5F9'}}},
+      responsive:true,maintainAspectRatio:false}
   });
 }
 
-function buildChartLoss() {
-  if(chartLoss) { chartLoss.destroy(); chartLoss=null; }
-  const agentIds=['agent_1','agent_2','agent_3','agent_4'];
-  const labels=['Round 1','Round 2'];
-  const datasets = agentIds.map(a=>({
-    label: cfg.agents[a].name,
-    data: flData.per_agent[a].fit.map(r=>r.loss),
-    borderColor: AGENT_COLORS[a], backgroundColor: AGENT_COLORS[a]+'33',
-    borderWidth:2, pointRadius:5, tension:.3, fill:false
-  }));
+function buildChartLoss(){
+  if(chartLoss){chartLoss.destroy();chartLoss=null;}
+  const ids=['agent_1','agent_2','agent_3','agent_4'];
   chartLoss = new Chart(document.getElementById('chart-loss'),{
-    type:'line', data:{labels, datasets},
-    options:{plugins:{legend:{position:'bottom'}},
-      scales:{y:{beginAtZero:false,grid:{color:'#f0f0f0'}}},
-      responsive:true, maintainAspectRatio:false}
+    type:'line',
+    data:{labels:['Round 1','Round 2'],datasets:ids.map((a,i)=>({
+      label:cfg.agents[a].name.replace('Zone ',''),
+      data:flData.per_agent[a].fit.map(r=>r.loss),
+      borderColor:CHART_COLORS[i],backgroundColor:CHART_COLORS[i]+'22',
+      borderWidth:2,pointRadius:5,tension:.3,fill:false}))},
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},
+      scales:{y:{beginAtZero:false,grid:{color:'#F1F5F9'}}},
+      responsive:true,maintainAspectRatio:false}
   });
 }
 
 let chartOccTimer = null;
-function updateOccChart() {
+function updateOccChart(){
   if(!state) return;
   const now = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  occHistory.push({t:now, v:Math.round(state.global_occ_ratio*100)});
+  occHistory.push({t:now,v:Math.round(state.global_occ_ratio*100)});
   if(occHistory.length>30) occHistory.shift();
-
-  if(!chartOcc) {
+  if(!chartOcc){
     chartOcc = new Chart(document.getElementById('chart-occ'),{
       type:'line',
-      data:{
-        labels:occHistory.map(x=>x.t),
-        datasets:[{
-          label:'Occupation globale (%)',
-          data:occHistory.map(x=>x.v),
-          borderColor:'#2E74B5', backgroundColor:'rgba(46,116,181,.1)',
-          borderWidth:2, pointRadius:2, tension:.4, fill:true
-        }]
-      },
-      options:{
-        animation:false,
-        plugins:{legend:{display:false}},
-        scales:{
-          y:{min:0,max:100,grid:{color:'#f0f0f0'},ticks:{callback:v=>v+'%'}},
-          x:{grid:{display:false},ticks:{maxTicksLimit:8}}
-        },
-        responsive:true, maintainAspectRatio:false
-      }
+      data:{labels:occHistory.map(x=>x.t),datasets:[{
+        label:'Occupancy %',data:occHistory.map(x=>x.v),
+        borderColor:'#2563EB',backgroundColor:'rgba(37,99,235,.08)',
+        borderWidth:2,pointRadius:2,tension:.4,fill:true}]},
+      options:{animation:false,plugins:{legend:{display:false}},
+        scales:{y:{min:0,max:100,grid:{color:'#F1F5F9'},ticks:{callback:v=>v+'%'}},
+          x:{grid:{display:false},ticks:{maxTicksLimit:6}}},
+        responsive:true,maintainAspectRatio:false}
     });
   } else {
     chartOcc.data.labels = occHistory.map(x=>x.t);
@@ -832,28 +1278,19 @@ function updateOccChart() {
   }
 }
 
-function updateParkingOccChart() {
+function updateParkingOccChart(){
   if(!state||!cfg) return;
   const sorted = Object.entries(state.parkings).sort((a,b)=>b[1].occ_ratio-a[1].occ_ratio);
   const labels = sorted.map(([pid])=>pid);
   const vals   = sorted.map(([,ps])=>Math.round(ps.occ_ratio*100));
-  const colors = sorted.map(([pid,ps])=>statusColor(ps.status)+'CC');
-  const agColors = sorted.map(([pid])=>AGENT_COLORS[cfg.parkings[pid].agent]);
-
-  if(!chartParkingOcc) {
+  const colors = sorted.map(([,ps])=>statusColor(ps.status)+'CC');
+  if(!chartParkingOcc){
     chartParkingOcc = new Chart(document.getElementById('chart-parking-occ'),{
       type:'bar',
-      data:{labels, datasets:[{
-        label:'Occupation (%)', data:vals,
-        backgroundColor:colors, borderColor:agColors, borderWidth:2, borderRadius:4
-      }]},
-      options:{
-        animation:false,
-        plugins:{legend:{display:false}},
-        scales:{y:{min:0,max:100,grid:{color:'#f0f0f0'},ticks:{callback:v=>v+'%'}},
-                x:{grid:{display:false}}},
-        responsive:true, maintainAspectRatio:false
-      }
+      data:{labels,datasets:[{label:'Occ %',data:vals,backgroundColor:colors,borderWidth:0,borderRadius:3}]},
+      options:{animation:false,plugins:{legend:{display:false}},
+        scales:{y:{min:0,max:100,grid:{color:'#F1F5F9'},ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}},
+        responsive:true,maintainAspectRatio:false}
     });
   } else {
     chartParkingOcc.data.labels = labels;
@@ -863,168 +1300,124 @@ function updateParkingOccChart() {
   }
 }
 
-// ─── FL TAB ─────────────────────────────────────────────────────
-function renderFL() {
+// ── FL TAB ─────────────────────────────────────────
+function renderFL(){
   buildCharts();
   renderFLRound(activeRound);
 }
 
-function selectRound(r) {
+function selectRound(r){
   activeRound = r;
-  document.getElementById('fl-r1-btn').classList.toggle('active',r===1);
-  document.getElementById('fl-r2-btn').classList.toggle('active',r===2);
+  document.getElementById('fl-r1').classList.toggle('active',r===1);
+  document.getElementById('fl-r2').classList.toggle('active',r===2);
   renderFLRound(r);
 }
 
-function renderFLRound(r) {
+function renderFLRound(r){
   if(!flData) return;
-  const rd = flData.rounds[r-1];
-  const fit = rd.fit; const ev = rd.eval;
-  document.getElementById('fl-round-detail').innerHTML = `
-    <div class="fl-round-badge">🔄 Round ${r} — ε = ${rd.epsilon.toFixed(3)}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+  const rd = flData.rounds[r-1]; const fit=rd.fit; const ev=rd.eval;
+  document.getElementById('fl-round-detail').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
-        <div class="section-title" style="font-size:11px;margin-bottom:6px">FIT (entraînement)</div>
-        <div class="metric-row"><span class="metric-label">Récompense</span><span class="metric-val">${fit.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</span></div>
-        <div class="metric-row"><span class="metric-label">Affectations</span><span class="metric-val">${fit.assigned}</span></div>
-        <div class="metric-row"><span class="metric-label">Loss</span><span class="metric-val ${r===2?'green':''}">${fit.loss.toFixed(4)}</span></div>
-        <div class="metric-row"><span class="metric-label">Buffer</span><span class="metric-val">${fit.buffer}</span></div>
+        <div class="section-label" style="margin-bottom:6px">FIT</div>
+        <div class="metric-row"><span class="ml">Reward</span><span class="mv">${fit.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</span></div>
+        <div class="metric-row"><span class="ml">Assigned</span><span class="mv">${fit.assigned}</span></div>
+        <div class="metric-row"><span class="ml">Loss</span><span class="mv ${r===2?'green':''}">${fit.loss.toFixed(4)}</span></div>
       </div>
       <div>
-        <div class="section-title" style="font-size:11px;margin-bottom:6px">EVALUATE</div>
-        <div class="metric-row"><span class="metric-label">Récompense</span><span class="metric-val">${ev.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</span></div>
-        <div class="metric-row"><span class="metric-label">Affectations</span><span class="metric-val">${ev.assigned}</span></div>
+        <div class="section-label" style="margin-bottom:6px">EVALUATE</div>
+        <div class="metric-row"><span class="ml">Reward</span><span class="mv">${ev.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</span></div>
+        <div class="metric-row"><span class="ml">Assigned</span><span class="mv">${ev.assigned}</span></div>
+        <div class="metric-row"><span class="ml">Epsilon</span><span class="mv">${rd.epsilon.toFixed(3)}</span></div>
       </div>
     </div>`;
 }
 
-function buildLossBars() {
+function buildLossBars(){
   if(!flData) return;
-  const agentIds=['agent_1','agent_2','agent_3','agent_4'];
-  const bars = agentIds.map(a=>{
+  const ids=['agent_1','agent_2','agent_3','agent_4'];
+  document.getElementById('fl-loss-bars').innerHTML = ids.map((a,i)=>{
     const r1=flData.per_agent[a].fit[0].loss;
     const r2=flData.per_agent[a].fit[1].loss;
     const pct=Math.round((1-r2/r1)*100);
-    const name=cfg.agents[a].name;
-    const col=AGENT_COLORS[a];
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-        <span style="color:${col};font-weight:600">${a} (${name})</span>
-        <span style="color:var(--green);font-weight:700">−${pct}% (${r1.toFixed(4)} → ${r2.toFixed(4)})</span>
+    const col=CHART_COLORS[i];
+    return `<div class="loss-row">
+      <div class="loss-row-header">
+        <span class="loss-agent" style="color:${col}">${a}</span>
+        <span class="loss-delta">−${pct}% (${r1.toFixed(4)} → ${r2.toFixed(4)})</span>
       </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <div style="flex:1;height:10px;background:#eee;border-radius:5px;overflow:hidden">
-          <div style="width:${Math.min(r1/0.35*100,100)}%;height:100%;background:${col}88;border-radius:5px"></div>
-        </div>
-        <div style="flex:1;height:10px;background:#eee;border-radius:5px;overflow:hidden">
-          <div style="width:${Math.min(r2/0.35*100,100)}%;height:100%;background:${col};border-radius:5px"></div>
-        </div>
+      <div class="loss-bars">
+        <div class="loss-bar-wrap"><div class="loss-bar-fill" style="width:${Math.min(r1/.35*100,100)}%;background:${col}44"></div></div>
+        <div class="loss-bar-wrap"><div class="loss-bar-fill" style="width:${Math.min(r2/.35*100,100)}%;background:${col}"></div></div>
       </div>
-      <div style="display:flex;gap:6px;font-size:10px;color:#aaa;margin-top:2px">
-        <div style="flex:1">Round 1: ${r1.toFixed(4)}</div>
-        <div style="flex:1">Round 2: ${r2.toFixed(4)}</div>
+      <div style="display:flex;gap:6px;font-size:10px;color:var(--text-3);margin-top:3px">
+        <div style="flex:1">R1: ${r1.toFixed(4)}</div>
+        <div style="flex:1">R2: ${r2.toFixed(4)}</div>
       </div>
     </div>`;
   }).join('');
-  document.getElementById('fl-loss-bars').innerHTML = bars;
 }
 
-function buildChartEpsilon() {
+function buildChartEpsilon(){
   if(chartEpsilon) return;
   chartEpsilon = new Chart(document.getElementById('chart-epsilon'),{
     type:'line',
-    data:{
-      labels:['Round 1','Round 2'],
-      datasets:[{
-        label:'Epsilon (ε)',
-        data:[0.900,0.720],
-        borderColor:'#E65100', backgroundColor:'rgba(230,81,0,.1)',
-        borderWidth:2, pointRadius:6, tension:.3, fill:true,
-        pointBackgroundColor:'#E65100'
-      }]
-    },
-    options:{
-      plugins:{legend:{display:false}},
-      scales:{y:{min:0,max:1,grid:{color:'#f0f0f0'}},x:{grid:{display:false}}},
-      responsive:true, maintainAspectRatio:false
-    }
+    data:{labels:['Round 1','Round 2'],datasets:[{
+      label:'ε',data:[0.900,0.720],
+      borderColor:'#D97706',backgroundColor:'rgba(217,119,6,.1)',
+      borderWidth:2,pointRadius:6,tension:.3,fill:true,pointBackgroundColor:'#D97706'
+    }]},
+    options:{plugins:{legend:{display:false}},
+      scales:{y:{min:0,max:1,grid:{color:'#F1F5F9'}},x:{grid:{display:false}}},
+      responsive:true,maintainAspectRatio:false}
   });
 }
 
-function buildFLTable() {
+function buildFLTable(){
   if(!flData||!cfg) return;
-  const agentIds=['agent_1','agent_2','agent_3','agent_4'];
-  const thStyle='padding:8px 12px;background:var(--gray-bg);color:var(--blue-dark);font-size:12px;font-weight:700;border-bottom:2px solid var(--blue-light);text-align:center';
-  const tdStyle='padding:8px 12px;font-size:12px;border-bottom:1px solid #f0f0f0;text-align:center';
-  const tdlStyle='padding:8px 12px;font-size:12px;border-bottom:1px solid #f0f0f0;text-align:left;font-weight:600';
-
+  const ids=['agent_1','agent_2','agent_3','agent_4'];
   let html=`<thead><tr>
-    <th style="${thStyle}">Agent</th>
-    <th style="${thStyle}">Round</th>
-    <th style="${thStyle}">Reward (FIT)</th>
-    <th style="${thStyle}">Assigned</th>
-    <th style="${thStyle}">Loss</th>
-    <th style="${thStyle}">Steps utiles</th>
-    <th style="${thStyle}">Taux affect.</th>
-    <th style="${thStyle}">Reward (EVAL)</th>
+    <th>Agent</th><th>Round</th><th>Reward (FIT)</th>
+    <th>Assigned</th><th>Loss</th><th>Rate</th><th>Reward (EVAL)</th>
   </tr></thead><tbody>`;
-
-  agentIds.forEach(a=>{
-    const col=AGENT_COLORS[a];
-    const fits=flData.per_agent[a].fit;
-    const evals=flData.per_agent[a].eval;
-    fits.forEach((f,i)=>{
+  ids.forEach((a,ai)=>{
+    const col=CHART_COLORS[ai];
+    flData.per_agent[a].fit.forEach((f,i)=>{
       const rate=Math.round(f.assigned/f.steps*100);
-      const ev=evals[i];
-      const bg=i%2===0?'#fff':'#fafafa';
-      html+=`<tr style="background:${bg}">
-        ${i===0?`<td rowspan="2" style="${tdlStyle};color:${col}">
-          <span style="background:${col};color:#fff;border-radius:4px;padding:2px 6px;font-size:11px">${a}</span><br>
-          <span style="font-size:10px;color:#888">${cfg.agents[a].name}</span>
-        </td>`:''}
-        <td style="${tdStyle}">Round ${f.round}</td>
-        <td style="${tdStyle};font-weight:700">${f.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</td>
-        <td style="${tdStyle}">${f.assigned}</td>
-        <td style="${tdStyle};color:${i===1?'#1E7D45':'#E65100'};font-weight:600">${f.loss.toFixed(4)}</td>
-        <td style="${tdStyle}">${f.steps}</td>
-        <td style="${tdStyle};color:#1E7D45;font-weight:700">${rate}%</td>
-        <td style="${tdStyle}">${ev.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</td>
+      const ev=flData.per_agent[a].eval[i];
+      html+=`<tr>
+        ${i===0?`<td rowspan="2"><span style="background:${col};color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;font-family:var(--mono)">${a}</span><br><span style="font-size:10px;color:var(--text-3)">${cfg.agents[a].name}</span></td>`:''}
+        <td style="font-family:var(--mono)">R${f.round}</td>
+        <td style="font-family:var(--mono);font-weight:600">${f.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</td>
+        <td style="font-family:var(--mono)">${f.assigned}</td>
+        <td style="font-family:var(--mono);color:${i===1?'var(--green)':'var(--amber)'};font-weight:600">${f.loss.toFixed(4)}</td>
+        <td style="font-family:var(--mono);color:var(--green);font-weight:600">${rate}%</td>
+        <td style="font-family:var(--mono)">${ev.reward.toLocaleString('fr-FR',{maximumFractionDigits:2})}</td>
       </tr>`;
     });
   });
   html+='</tbody>';
-  document.getElementById('fl-table').innerHTML = html;
+  document.getElementById('fl-table').innerHTML=html;
 }
 
-// ─── POLLING ────────────────────────────────────────────────────
-async function poll() {
-  try {
+// ── POLLING ─────────────────────────────────────────
+async function poll(){
+  try{
     const res = await fetch('/api/state');
     state = await res.json();
     document.getElementById('nav-step').textContent = state.step;
     document.getElementById('nav-pressure').textContent = state.traffic_pressure.toFixed(2);
-    document.getElementById('stat-free').textContent = state.total_free;
-    document.getElementById('stat-occ').textContent = Math.round(state.global_occ_ratio*100)+'%';
-    document.getElementById('stat-assigned').textContent = state.total_assigned;
-
+    document.getElementById('st-free').textContent = state.total_free;
+    document.getElementById('st-occ').textContent = Math.round(state.global_occ_ratio*100)+'%';
+    document.getElementById('st-assigned').textContent = state.total_assigned;
     updateMainMap();
-
-    // Charts if visible
-    const metricTab = document.getElementById('tab-metrics');
-    if(metricTab.classList.contains('active')) {
-      updateOccChart();
-      updateParkingOccChart();
-    }
-  } catch(e) { console.error('Poll error',e); }
+    const at = document.getElementById('tab-analytics');
+    if(at.classList.contains('active')){ updateOccChart(); updateParkingOccChart(); }
+  }catch(e){ console.error('Poll error',e); }
 }
 
-function startPolling() {
-  poll();
-  setInterval(poll, 2000);
-}
-
-// ─── START ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
+function startPolling(){ poll(); setInterval(poll,2000); }
+document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>
 </html>
