@@ -987,16 +987,18 @@ function drawVoronoiZones(map){
     for(let j=0;j<STEPS;j++){
       const lat1=minLat+i*dlat, lat2=lat1+dlat;
       const lon1=minLon+j*dlon, lon2=lon1+dlon;
-      // Vertical edge (right side of cell [i][j])
+      // Vertical edge (right side of cell [i][j]) — dashed white border
       if(j<STEPS-1 && grid[i][j]!==grid[i][j+1]){
         L.polyline([[lat1,lon2],[lat2,lon2]],{
-          color:'#ffffff', weight:2.5, opacity:1, interactive:false
+          color:'#ffffff', weight:3, opacity:1,
+          dashArray:'10,6', interactive:false
         }).addTo(map);
       }
-      // Horizontal edge (bottom of cell [i][j])
+      // Horizontal edge (bottom of cell [i][j]) — dashed white border
       if(i<STEPS-1 && grid[i][j]!==grid[i+1][j]){
         L.polyline([[lat2,lon1],[lat2,lon2]],{
-          color:'#ffffff', weight:2.5, opacity:1, interactive:false
+          color:'#ffffff', weight:3, opacity:1,
+          dashArray:'10,6', interactive:false
         }).addTo(map);
       }
     }
