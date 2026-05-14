@@ -423,6 +423,38 @@ input[type=range]::-moz-range-thumb{
 .fl-table tr:last-child td{border:none}
 .fl-table tr:hover td{background:var(--bg)}
 
+/* ── ACCEPT / REFUSE BUTTONS ──────────────────────── */
+.action-row{display:flex;gap:6px;margin-top:8px}
+.btn-accept{
+  flex:1;padding:7px 0;border-radius:var(--radius-sm);
+  border:1.5px solid var(--green);background:var(--green-soft);
+  color:var(--green);font-size:12px;font-weight:600;cursor:pointer;transition:.18s
+}
+.btn-accept:hover{background:var(--green);color:#fff}
+.btn-refuse{
+  flex:1;padding:7px 0;border-radius:var(--radius-sm);
+  border:1.5px solid var(--border);background:var(--surface);
+  color:var(--text-3);font-size:12px;font-weight:600;cursor:pointer;transition:.18s
+}
+.btn-refuse:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+
+/* ── RESERVATION CONFIRMATION ─────────────────────── */
+.confirm-card{
+  background:var(--green-soft);border:1.5px solid var(--green);
+  border-radius:var(--radius);padding:16px;margin:12px 20px
+}
+.confirm-title{font-size:13px;font-weight:700;color:var(--green);margin-bottom:6px}
+.confirm-id{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text-1);letter-spacing:2px}
+
+/* ── RADIUS INFO PILL ─────────────────────────────── */
+.radius-info{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--blue-soft);border:1px solid #BFDBFE;
+  border-radius:20px;padding:4px 12px;
+  font-size:11px;font-weight:600;color:var(--blue);
+  font-family:var(--mono);margin-bottom:12px
+}
+
 /* ── INFO BOX ─────────────────────────────────────── */
 .info-box{
   background:var(--bg);border:1px solid var(--border);
@@ -648,6 +680,9 @@ input[type=range]::-moz-range-thumb{
         <button class="btn btn-primary" style="width:100%" onclick="doSearch()">Search</button>
       </div>
 
+      <!-- Reservation confirmation -->
+      <div id="reservation-confirm" style="display:none"></div>
+
       <!-- Results -->
       <div id="search-results" style="display:none">
         <div class="divider"></div>
@@ -699,6 +734,9 @@ input[type=range]::-moz-range-thumb{
         <button class="mode-opt" id="mode-cheap" onclick="setMode('cheap')">Cheapest</button>
       </div>
 
+      <div id="rec-radius-info" class="radius-info" style="display:none">
+        Radius: <span id="rec-radius-val">—</span> m · <span id="rec-regime">normal</span> traffic
+      </div>
       <div id="rec-position" style="font-family:var(--mono);font-size:12px;color:var(--text-3);margin-bottom:14px">
         Position: not set
       </div>
@@ -828,27 +866,48 @@ input[type=range]::-moz-range-thumb{
 let cfg = null, state = null, flData = null;
 let mapMain = null, mapRec = null, mapSearch = null;
 let recMarker = null, recLayers = [], recPos = null;
+let recRadiusCircle = null;
 let searchMarker = null, searchLayers = [], searchPos = null;
 let selMode = 'close', selSearchMode = 'balanced';
 let activeRound = 1;
 let occHistory = [];
 let chartOcc, chartReward, chartAssigned, chartLoss, chartParkingOcc, chartEpsilon;
-const parkMarkersMain = {}, parkMarkersSearch = {};
+const parkMarkersMain = {};
+let currentTopK = [];       // current search top-k candidates
+let refusedIds  = new Set();// refused parking ids in current search
+let reservedId  = null;     // confirmed reservation id
 
+// Distinct agent colors — no blue degradation
 const AGENT_COLORS = {
-  agent_1:'#1E40AF', agent_2:'#2563EB', agent_3:'#0891B2', agent_4:'#059669'
+  agent_1: '#F97316',  // Orange  — Zone Nord-Est
+  agent_2: '#7C3AED',  // Violet  — Zone Centre
+  agent_3: '#059669',  // Emerald — Zone Sud
+  agent_4: '#E11D48'   // Rose    — Zone Ouest
 };
 
-// ── STATUS HELPERS ─────────────────────────────────
+// Mode radius limits (mirrors backend MODE_RADIUS)
+const MODE_RADIUS = {
+  close:    {normal:500,  dense:700},
+  cheap:    {normal:1500, dense:2000},
+  balanced: {normal:1000, dense:1400},
+};
+function getModeRadius(mode, tp){
+  return (MODE_RADIUS[mode]||MODE_RADIUS.balanced)[tp>=1.3?'dense':'normal'];
+}
+
+// ── STATUS HELPERS — 3 tiers: <50% green · 50–80% orange · >80% red ─────────
 function statusColor(s){
-  return s==='full'?'#DC2626':s==='high'?'#D97706':s==='medium'?'#F59E0B':'#059669'
+  return s==='high'?'#EF4444':s==='medium'?'#F97316':'#10B981';
 }
 function statusLabel(s){
-  return s==='full'?'Full':s==='high'?'High':s==='medium'?'Medium':'Available'
+  return s==='high'?'High (>80%)':s==='medium'?'Medium (50–80%)':'Available (<50%)';
 }
 function statusClass(s){
-  return s==='full'?'red':s==='high'?'amber':s==='medium'?'amber':'green'
+  return s==='high'?'red':s==='medium'?'amber':'green';
 }
+// Accept ratio number directly as well
+function ratioColor(r){ return r>=.80?'#EF4444':r>=.50?'#F97316':'#10B981'; }
+function ratioClass(r){ return r>=.80?'red':r>=.50?'amber':'green'; }
 
 // ── TABS ───────────────────────────────────────────
 function showTab(name){
@@ -878,18 +937,52 @@ async function init(){
   } catch(e){ console.error('Init error:',e); }
 }
 
+// ── VORONOI ZONE DRAWING ───────────────────────────
+// Paints the map as contiguous agent zones (no overlaps, full coverage)
+// using a grid-based nearest-centroid assignment (Voronoi approximation).
+function drawVoronoiZones(map){
+  const minLat=49.592, maxLat=49.652, minLon=6.082, maxLon=6.194;
+  const STEPS = 24;
+  const dlat  = (maxLat-minLat)/STEPS;
+  const dlon  = (maxLon-minLon)/STEPS;
+  const centroids = Object.entries(cfg.agents).map(([id,a])=>({id,lat:a.lat,lon:a.lon}));
+
+  for(let i=0;i<STEPS;i++){
+    for(let j=0;j<STEPS;j++){
+      const lat1=minLat+i*dlat, lat2=lat1+dlat;
+      const lon1=minLon+j*dlon, lon2=lon1+dlon;
+      const cLat=(lat1+lat2)/2, cLon=(lon1+lon2)/2;
+      const cosLat=Math.cos(cLat*Math.PI/180);
+      let nearest=centroids[0], minD=Infinity;
+      for(const c of centroids){
+        const d=(cLat-c.lat)**2+((cLon-c.lon)*cosLat)**2;
+        if(d<minD){minD=d;nearest=c;}
+      }
+      L.rectangle([[lat1,lon1],[lat2,lon2]],{
+        color:'transparent', fillColor:AGENT_COLORS[nearest.id],
+        fillOpacity:0.13, weight:0, interactive:false
+      }).addTo(map);
+    }
+  }
+  // Draw agent centroid labels on top
+  Object.entries(cfg.agents).forEach(([id,a])=>{
+    const col=AGENT_COLORS[id];
+    L.marker([a.lat,a.lon],{icon:L.divIcon({
+      html:`<div style="background:${col};color:#fff;border-radius:6px;padding:4px 10px;
+             font-size:11px;font-weight:700;white-space:nowrap;border:2px solid #fff;
+             box-shadow:0 2px 8px rgba(0,0,0,.25)">${a.name}</div>`,
+      className:'',iconAnchor:[40,12]
+    })}).addTo(map).bindPopup(`<b>${a.name}</b><br>Capacity: ${a.capacity} spots<br>Traffic score: ${a.traffic_score}`);
+  });
+}
+
 // ── MAIN MAP (Overview) ────────────────────────────
 function initMainMap(){
   mapMain = L.map('map-main').setView([49.619,6.133],13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap',maxZoom:18
   }).addTo(mapMain);
-  Object.entries(cfg.agents).forEach(([id,a])=>{
-    L.circle([a.lat,a.lon],{
-      radius:a.radius_m, color:AGENT_COLORS[id], fill:true,
-      fillColor:AGENT_COLORS[id], fillOpacity:0.05, weight:1.5, dashArray:'5,4'
-    }).addTo(mapMain).bindPopup(`<b>${a.name}</b><br>${a.capacity} spots`);
-  });
+  drawVoronoiZones(mapMain);
 }
 
 function updateMainMap(){
@@ -907,8 +1000,9 @@ function updateMainMap(){
     } else {
       parkMarkersMain[pid] = L.marker([info.lat,info.lon],{icon}).addTo(mapMain);
     }
+    const statusTxt = statusLabel(ps.status);
     parkMarkersMain[pid].bindPopup(
-      `<b>${info.name}</b><br>Free: <b>${ps.free}</b>/${ps.capacity}<br>Occ: <b>${pct}%</b><br>Price: <b>${ps.price_balanced} €/h</b>`
+      `<b>${info.name}</b><br>Free: <b>${ps.free}</b>/${ps.capacity}<br>Occ: <b>${pct}%</b> — ${statusTxt}<br>Price: <b>${ps.price_balanced} €/h</b>`
     );
   });
   updateParkList();
@@ -947,12 +1041,7 @@ function initSearchMap(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap',maxZoom:18
   }).addTo(mapSearch);
-  Object.entries(cfg.agents).forEach(([id,a])=>{
-    L.circle([a.lat,a.lon],{
-      radius:a.radius_m, color:AGENT_COLORS[id], fill:true,
-      fillColor:AGENT_COLORS[id], fillOpacity:0.04, weight:1.5, dashArray:'5,4'
-    }).addTo(mapSearch);
-  });
+  drawVoronoiZones(mapSearch);
   Object.entries(cfg.parkings).forEach(([pid,info])=>{
     const col = AGENT_COLORS[info.agent]||'#333';
     const icon = L.divIcon({
@@ -1004,6 +1093,8 @@ function setSearchMode(m){
   ['close','balanced','cheap'].forEach(x=>{
     document.getElementById('sm-'+x).classList.toggle('active',x===m);
   });
+  // Re-rank results when mode changes
+  if(currentTopK.length) renderSearchPanel();
 }
 
 async function doSearch(){
@@ -1021,42 +1112,70 @@ async function doSearch(){
   } catch(e){ console.error(e); }
 }
 
+// Pick the best candidate according to the active mode
+function pickModeWinner(topK, mode){
+  if(!topK||!topK.length) return null;
+  const pool = topK.filter(c=>!refusedIds.has(c.id));
+  if(!pool.length) return null;
+  if(mode==='close')   return [...pool].sort((a,b)=>a.distance_m-b.distance_m)[0];
+  if(mode==='cheap')   return [...pool].sort((a,b)=>a.price-b.price)[0];
+  return pool[0]; // balanced → DQN order (ascending score = best)
+}
+
 function renderSearchResults(data, radius){
   document.getElementById('search-empty').style.display = 'none';
   document.getElementById('search-results').style.display = 'block';
+  document.getElementById('reservation-confirm').style.display = 'none';
 
   // Clear map layers
   searchLayers.forEach(l=>mapSearch.removeLayer(l));
   searchLayers = [];
+  refusedIds.clear();
 
-  // Draw search radius circle
+  // RED radius circle (attractive, clearly visible)
   const circle = L.circle([searchPos.lat,searchPos.lon],{
-    radius, color:'#2563EB', fill:true, fillColor:'#2563EB', fillOpacity:.05,
-    weight:1.5, dashArray:'6,4'
+    radius, color:'#EF4444', fill:true, fillColor:'#EF4444', fillOpacity:.06,
+    weight:2, dashArray:'6,4'
   }).addTo(mapSearch);
   searchLayers.push(circle);
 
-  if(!data.winner){
+  if(!data.top_k||!data.top_k.length){
     document.getElementById('winner-card').innerHTML =
       `<p style="color:var(--text-3);font-size:12px;text-align:center;padding:8px">No parking found within this radius at this price.</p>`;
     document.getElementById('topk-list').innerHTML = '';
     return;
   }
 
+  currentTopK = data.top_k;
+  renderSearchPanel();
+}
+
+function renderSearchPanel(){
+  const winner = pickModeWinner(currentTopK, selSearchMode);
+  if(!winner){
+    document.getElementById('winner-card').innerHTML =
+      `<p style="color:var(--text-3);font-size:12px;text-align:center;padding:8px">All candidates refused.</p>`;
+    document.getElementById('topk-list').innerHTML = '';
+    return;
+  }
+
   // Winner card
-  const w = data.winner;
-  const wcls = w.occ_ratio>=.75?'amber':w.occ_ratio>=.40?'amber':'green';
+  const wcls = ratioClass(winner.occ_ratio);
   document.getElementById('winner-card').innerHTML = `
-    <div class="winner-label">Best Match · Rank 1</div>
-    <div class="winner-name">${w.name}</div>
-    <span class="sbadge ${wcls}" style="margin-bottom:6px">
-      <span class="dot dot-${wcls}"></span>${Math.round(w.occ_ratio*100)}% occupied
+    <div class="winner-label">Best Match — ${selSearchMode.toUpperCase()} mode</div>
+    <div class="winner-name">${winner.name}</div>
+    <span class="sbadge ${wcls}" style="margin-bottom:8px">
+      <span class="dot dot-${wcls}"></span>${Math.round(winner.occ_ratio*100)}% occupied
     </span>
     <div class="winner-meta">
-      <div class="wm-item"><div class="wm-val">${w.distance_m} m</div><div class="wm-lbl">Distance</div></div>
-      <div class="wm-item"><div class="wm-val">${w.price} €/h</div><div class="wm-lbl">Price</div></div>
-      <div class="wm-item"><div class="wm-val">${w.free_slots}</div><div class="wm-lbl">Free</div></div>
-      <div class="wm-item"><div class="wm-val">${w.travel_time_min} min</div><div class="wm-lbl">Walk</div></div>
+      <div class="wm-item"><div class="wm-val">${winner.distance_m} m</div><div class="wm-lbl">Distance</div></div>
+      <div class="wm-item"><div class="wm-val">${winner.price} €/h</div><div class="wm-lbl">Price</div></div>
+      <div class="wm-item"><div class="wm-val">${winner.free_slots}</div><div class="wm-lbl">Free</div></div>
+      <div class="wm-item"><div class="wm-val">${winner.travel_time_min||'—'} min</div><div class="wm-lbl">Walk</div></div>
+    </div>
+    <div class="action-row">
+      <button class="btn-accept" onclick="acceptParking('${winner.id}','${winner.name}')">Accept</button>
+      <button class="btn-refuse" onclick="refuseParking('${winner.id}')">Refuse</button>
     </div>`;
 
   // Draw winner on map
@@ -1066,47 +1185,117 @@ function renderSearchResults(data, radius){
            border:3px solid #fff;box-shadow:0 2px 8px rgba(5,150,105,.5)">1</div>`,
     iconSize:[28,28],iconAnchor:[14,14],className:''
   });
-  const wm = L.marker([w.lat,w.lon],{icon:wIcon}).addTo(mapSearch);
-  searchLayers.push(wm);
-  const wl = L.polyline([[searchPos.lat,searchPos.lon],[w.lat,w.lon]],{
-    color:'#059669',weight:2.5,opacity:.8
-  }).addTo(mapSearch);
-  searchLayers.push(wl);
-  mapSearch.flyTo([w.lat,w.lon],14,{duration:.6});
+  // Remove old dynamic map layers then redraw
+  searchLayers.filter(l=>l._isDynamic).forEach(l=>mapSearch.removeLayer(l));
+  searchLayers = searchLayers.filter(l=>!l._isDynamic);
 
-  // Top-K list
-  const rankCls = ['r1','r2','r3','rrn','rrn'];
-  document.getElementById('topk-list').innerHTML = data.top_k.map((c,i)=>{
-    const ccls = c.occ_ratio>=.75?'red':c.occ_ratio>=.4?'amber':'green';
-    if(i>0){
-      const line = L.polyline([[searchPos.lat,searchPos.lon],[c.lat,c.lon]],{
-        color:'#94A3B8',weight:1.5,dashArray:'5,4',opacity:.6
-      }).addTo(mapSearch);
-      searchLayers.push(line);
-    }
-    return `<div class="topk-item" onclick="mapSearch.flyTo([${c.lat},${c.lon}],15)">
-      <div class="topk-rank ${rankCls[i]||'rrn'}">${i+1}</div>
-      <div class="topk-info">
-        <div class="topk-name">${c.name}</div>
-        <div class="topk-sub">${c.distance_m} m · ${c.free_slots} free · <span style="color:var(--${ccls})">${Math.round(c.occ_ratio*100)}%</span></div>
+  const wm = L.marker([winner.lat,winner.lon],{icon:wIcon}).addTo(mapSearch);
+  wm._isDynamic=true; searchLayers.push(wm);
+  const wl = L.polyline([[searchPos.lat,searchPos.lon],[winner.lat,winner.lon]],{
+    color:'#059669',weight:2.5,opacity:.85
+  }).addTo(mapSearch);
+  wl._isDynamic=true; searchLayers.push(wl);
+  mapSearch.flyTo([winner.lat,winner.lon],14,{duration:.6});
+
+  // Top-K list (excluding refused ones)
+  const rankCls=['r1','r2','r3','rrn','rrn'];
+  let rank=0;
+  document.getElementById('topk-list').innerHTML = currentTopK
+    .filter(c=>!refusedIds.has(c.id))
+    .map(c=>{
+      rank++;
+      const ccls = ratioClass(c.occ_ratio);
+      if(rank>1){
+        const line = L.polyline([[searchPos.lat,searchPos.lon],[c.lat,c.lon]],{
+          color:'#CBD5E1',weight:1.5,dashArray:'5,4',opacity:.7
+        }).addTo(mapSearch);
+        line._isDynamic=true; searchLayers.push(line);
+      }
+      return `<div class="topk-item" onclick="mapSearch.flyTo([${c.lat},${c.lon}],15)">
+        <div class="topk-rank ${rankCls[rank-1]||'rrn'}">${rank}</div>
+        <div class="topk-info">
+          <div class="topk-name">${c.name}</div>
+          <div class="topk-sub">${c.distance_m} m · ${c.free_slots} free ·
+            <span style="color:${ratioColor(c.occ_ratio)}">${Math.round(c.occ_ratio*100)}%</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div class="topk-price">${c.price} €</div>
+          <button class="btn-refuse" style="padding:3px 8px;font-size:10px"
+            onclick="event.stopPropagation();refuseParking('${c.id}')">Refuse</button>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// Accept: call /api/v1/reservations
+async function acceptParking(parkingId, parkingName){
+  if(!searchPos) return;
+  try{
+    const res = await fetch('/api/v1/reservations',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({parking_id:parkingId, lat:searchPos.lat, lon:searchPos.lon, mode:selSearchMode})
+    });
+    if(!res.ok){ const e=await res.json(); alert(e.detail||'Reservation failed'); return; }
+    const data = await res.json();
+    // Show confirmation
+    document.getElementById('search-results').style.display='none';
+    const box = document.getElementById('reservation-confirm');
+    box.style.display='block';
+    box.innerHTML=`<div class="confirm-card">
+      <div class="confirm-title">Reservation Confirmed</div>
+      <div class="confirm-id">${data.reservation_id}</div>
+      <div style="font-size:12px;color:var(--text-2);margin-top:8px">
+        ${data.parking_name}<br>
+        ${data.distance_m} m away · ${data.price_eur_h} €/h
       </div>
-      <div class="topk-price">${c.price} €</div>
+      <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="resetSearch()">New Search</button>
     </div>`;
-  }).join('');
+  }catch(e){ console.error(e); alert('Network error'); }
+}
+
+// Refuse: remove candidate and re-render
+function refuseParking(parkingId){
+  refusedIds.add(parkingId);
+  renderSearchPanel();
+}
+
+// Reset search form
+function resetSearch(){
+  document.getElementById('reservation-confirm').style.display='none';
+  document.getElementById('search-results').style.display='none';
+  document.getElementById('search-empty').style.display='block';
+  searchLayers.forEach(l=>mapSearch.removeLayer(l));
+  searchLayers=[];
+  currentTopK=[];
+  refusedIds.clear();
+  if(searchMarker){ mapSearch.removeLayer(searchMarker); searchMarker=null; }
+  searchPos=null;
+  document.getElementById('search-pos-txt').textContent='Click on the map to set position';
 }
 
 // ── REC MAP (Recommend) ────────────────────────────
+function updateRecRadiusCircle(){
+  if(!recPos) return;
+  const tp = state ? state.traffic_pressure : 1.0;
+  const radius = getModeRadius(selMode, tp);
+  if(recRadiusCircle) mapRec.removeLayer(recRadiusCircle);
+  recRadiusCircle = L.circle([recPos.lat,recPos.lon],{
+    radius, color:'#2563EB', fill:true, fillColor:'#2563EB',
+    fillOpacity:0.05, weight:1.5, dashArray:'5,4'
+  }).addTo(mapRec);
+  // Update UI
+  document.getElementById('rec-radius-info').style.display='inline-flex';
+  document.getElementById('rec-radius-val').textContent=radius;
+  document.getElementById('rec-regime').textContent=tp>=1.3?'dense':'normal';
+}
+
 function initRecMap(){
   mapRec = L.map('rec-map').setView([49.619,6.133],13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap',maxZoom:18
   }).addTo(mapRec);
-  Object.entries(cfg.agents).forEach(([id,a])=>{
-    L.circle([a.lat,a.lon],{
-      radius:a.radius_m,color:AGENT_COLORS[id],fill:true,
-      fillColor:AGENT_COLORS[id],fillOpacity:0.05,weight:1.5,dashArray:'5,4'
-    }).addTo(mapRec);
-  });
+  drawVoronoiZones(mapRec);
   Object.entries(cfg.parkings).forEach(([pid,info])=>{
     const col = AGENT_COLORS[info.agent]||'#333';
     const icon = L.divIcon({
@@ -1127,6 +1316,7 @@ function initRecMap(){
              border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">V</div>`,
       iconSize:[26,26],iconAnchor:[13,13],className:''
     })}).addTo(mapRec);
+    updateRecRadiusCircle();
     doRecommend();
   });
 }
@@ -1136,7 +1326,7 @@ function setMode(m){
   ['close','balanced','cheap'].forEach(x=>{
     document.getElementById('mode-'+x).classList.toggle('active',x===m);
   });
-  if(recPos) doRecommend();
+  if(recPos){ updateRecRadiusCircle(); doRecommend(); }
 }
 
 async function doRecommend(){
@@ -1161,7 +1351,7 @@ function renderRecommendation(data){
 
   const cards = data.top5.map((c,i)=>{
     const isBest = i===0;
-    const cls = statusClass(c.occ_ratio>=.98?'full':c.occ_ratio>=.75?'high':c.occ_ratio>=.4?'medium':'low');
+    const cls = ratioClass(c.occ_ratio);
     const rkCls = ['rr1','rr2','rr3','rrn','rrn'][i]||'rrn';
     const line = L.polyline([[recPos.lat,recPos.lon],[c.lat,c.lon]],{
       color:isBest?'#059669':'#CBD5E1',weight:isBest?2.5:1.5,
@@ -1196,11 +1386,10 @@ function renderRecommendation(data){
   }).join('');
   document.getElementById('rec-cards').innerHTML = cards || '<p style="color:var(--text-3);text-align:center;padding:20px">No parking available in range</p>';
   document.getElementById('rec-traffic').textContent =
-    `Traffic: ${data.traffic_pressure} · Mode: ${data.mode.toUpperCase()} · Step: ${data.step}`;
+    `Traffic: ${data.traffic_pressure} · Radius: ${data.active_radius} m (${data.pressure_regime}) · Step: ${data.step}`;
 }
 
 // ── CHARTS ─────────────────────────────────────────
-const CHART_COLORS = ['#1E40AF','#2563EB','#0891B2','#059669'];
 
 function buildCharts(){
   if(!flData||!cfg) return;

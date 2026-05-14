@@ -108,6 +108,15 @@ FL_HISTORY = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# MODE RADIUS LIMITS  (used by /api/recommend + exposed in /api/config)
+# ─────────────────────────────────────────────────────────────────────────────
+MODE_RADIUS = {
+    "close":    {"normal": 500,  "dense": 700},
+    "cheap":    {"normal": 1500, "dense": 2000},
+    "balanced": {"normal": 1000, "dense": 1400},
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # RESERVATIONS & RL FEEDBACK  (Module 4)
 # ─────────────────────────────────────────────────────────────────────────────
 RESERVATIONS: dict = {}      # reservation_id → reservation dict
@@ -307,7 +316,7 @@ def root(): return FileResponse("static/index.html")
 def config():
     return JSONResponse({"agents": AGENTS, "parkings": {
         pid: {**info, "id": pid} for pid, info in PARKINGS.items()
-    }})
+    }, "mode_radius": MODE_RADIUS})
 
 @app.get("/api/state")
 def state_endpoint():
@@ -322,7 +331,7 @@ def state_endpoint():
                 "occ_ratio": round(r, 3),
                 "pred_ratio": round(sim.pred_ratio(pid), 3),
                 "price_balanced": dyn_price(pid, "balanced", sim.traffic_pressure),
-                "status": "full" if r>=.98 else "high" if r>=.75 else "medium" if r>=.40 else "low",
+                "status": "high" if r>=.80 else "medium" if r>=.50 else "low",
             }
         total_cap = sum(PARKINGS[p]["cap"] for p in PARKINGS)
         total_occ = sum(sim.occupancy[p] for p in PARKINGS)
@@ -339,12 +348,14 @@ def state_endpoint():
 def recommend(b: ReqBody):
     mode = b.mode if b.mode in ["close","cheap","balanced"] else "balanced"
     tp = sim.traffic_pressure
+    pressure_key = "dense" if tp >= 1.3 else "normal"
+    max_dist = MODE_RADIUS[mode][pressure_key]
     results = []
     for pid, info in PARKINGS.items():
         if sim.free(pid) <= 0: continue
         if sim.pred_ratio(pid) >= 0.99: continue
         dist = haversine(b.lat, b.lon, info["lat"], info["lon"])
-        if dist > 4000: continue
+        if dist > max_dist: continue
         sc, price = candidate_score(pid, dist, mode, tp)
         results.append({
             "id": pid, "name": info["name"], "agent": info["agent"],
@@ -378,6 +389,8 @@ def recommend(b: ReqBody):
         "recommendation": top5[0] if top5 else None,
         "top5": top5, "step": sim.step,
         "traffic_pressure": round(tp, 3),
+        "active_radius": max_dist,
+        "pressure_regime": pressure_key,
     })
 
 @app.get("/api/fl")
