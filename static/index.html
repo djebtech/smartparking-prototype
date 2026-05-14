@@ -734,8 +734,8 @@ input[type=range]::-moz-range-thumb{
         <button class="mode-opt" id="mode-cheap" onclick="setMode('cheap')">Cheapest</button>
       </div>
 
-      <div id="rec-radius-info" class="radius-info" style="display:none">
-        Radius: <span id="rec-radius-val">—</span> m · <span id="rec-regime">normal</span> traffic
+      <div id="rec-radius-info" class="radius-info" style="display:none;flex-wrap:wrap">
+        Active radius: <span id="rec-radius-val">—</span> m &nbsp;·&nbsp; <span id="rec-regime">—</span>
       </div>
       <div id="rec-position" style="font-family:var(--mono);font-size:12px;color:var(--text-3);margin-bottom:14px">
         Position: not set
@@ -938,41 +938,81 @@ async function init(){
 }
 
 // ── VORONOI ZONE DRAWING ───────────────────────────
-// Paints the map as contiguous agent zones (no overlaps, full coverage)
-// using a grid-based nearest-centroid assignment (Voronoi approximation).
+// Each agent covers a spatial zone whose borders touch — no overlap, no gap.
+// Built by: (1) nearest-centroid grid assignment, (2) white boundary lines
+// drawn exactly where two adjacent cells belong to different agents.
 function drawVoronoiZones(map){
-  const minLat=49.592, maxLat=49.652, minLon=6.082, maxLon=6.194;
-  const STEPS = 24;
+  const minLat=49.590, maxLat=49.655, minLon=6.080, maxLon=6.196;
+  const STEPS = 30;
   const dlat  = (maxLat-minLat)/STEPS;
   const dlon  = (maxLon-minLon)/STEPS;
   const centroids = Object.entries(cfg.agents).map(([id,a])=>({id,lat:a.lat,lon:a.lon}));
 
+  function nearestId(cLat, cLon){
+    const cos = Math.cos(cLat*Math.PI/180);
+    let best=centroids[0], minD=Infinity;
+    for(const c of centroids){
+      const d=(cLat-c.lat)**2+((cLon-c.lon)*cos)**2;
+      if(d<minD){minD=d;best=c;}
+    }
+    return best.id;
+  }
+
+  // Step 1 — build full assignment grid
+  const grid = Array.from({length:STEPS},(_,i)=>
+    Array.from({length:STEPS},(_,j)=>
+      nearestId(minLat+(i+.5)*dlat, minLon+(j+.5)*dlon)
+    )
+  );
+
+  // Step 2 — draw filled cells (canvas renderer for performance)
+  const cvs = L.canvas({padding:0.1});
   for(let i=0;i<STEPS;i++){
     for(let j=0;j<STEPS;j++){
       const lat1=minLat+i*dlat, lat2=lat1+dlat;
       const lon1=minLon+j*dlon, lon2=lon1+dlon;
-      const cLat=(lat1+lat2)/2, cLon=(lon1+lon2)/2;
-      const cosLat=Math.cos(cLat*Math.PI/180);
-      let nearest=centroids[0], minD=Infinity;
-      for(const c of centroids){
-        const d=(cLat-c.lat)**2+((cLon-c.lon)*cosLat)**2;
-        if(d<minD){minD=d;nearest=c;}
-      }
       L.rectangle([[lat1,lon1],[lat2,lon2]],{
-        color:'transparent', fillColor:AGENT_COLORS[nearest.id],
-        fillOpacity:0.13, weight:0, interactive:false
+        renderer:cvs,
+        color:'transparent',
+        fillColor:AGENT_COLORS[grid[i][j]],
+        fillOpacity:0.22,
+        weight:0,
+        interactive:false
       }).addTo(map);
     }
   }
-  // Draw agent centroid labels on top
+
+  // Step 3 — draw WHITE boundary lines exactly where zones touch
+  for(let i=0;i<STEPS;i++){
+    for(let j=0;j<STEPS;j++){
+      const lat1=minLat+i*dlat, lat2=lat1+dlat;
+      const lon1=minLon+j*dlon, lon2=lon1+dlon;
+      // Vertical edge (right side of cell [i][j])
+      if(j<STEPS-1 && grid[i][j]!==grid[i][j+1]){
+        L.polyline([[lat1,lon2],[lat2,lon2]],{
+          color:'#ffffff', weight:2.5, opacity:1, interactive:false
+        }).addTo(map);
+      }
+      // Horizontal edge (bottom of cell [i][j])
+      if(i<STEPS-1 && grid[i][j]!==grid[i+1][j]){
+        L.polyline([[lat2,lon1],[lat2,lon2]],{
+          color:'#ffffff', weight:2.5, opacity:1, interactive:false
+        }).addTo(map);
+      }
+    }
+  }
+
+  // Step 4 — agent name labels on zone centroids
   Object.entries(cfg.agents).forEach(([id,a])=>{
     const col=AGENT_COLORS[id];
     L.marker([a.lat,a.lon],{icon:L.divIcon({
-      html:`<div style="background:${col};color:#fff;border-radius:6px;padding:4px 10px;
-             font-size:11px;font-weight:700;white-space:nowrap;border:2px solid #fff;
-             box-shadow:0 2px 8px rgba(0,0,0,.25)">${a.name}</div>`,
-      className:'',iconAnchor:[40,12]
-    })}).addTo(map).bindPopup(`<b>${a.name}</b><br>Capacity: ${a.capacity} spots<br>Traffic score: ${a.traffic_score}`);
+      html:`<div style="background:${col};color:#fff;border-radius:6px;
+             padding:5px 12px;font-size:11px;font-weight:700;
+             white-space:nowrap;border:2px solid #fff;
+             box-shadow:0 2px 10px rgba(0,0,0,.30)">${a.name}</div>`,
+      className:'',iconAnchor:[44,14]
+    })}).addTo(map)
+      .bindPopup(`<b>${a.name}</b><br>Capacity: ${a.capacity} spots<br>Traffic score: ${a.traffic_score}`);
   });
 }
 
@@ -1132,10 +1172,15 @@ function renderSearchResults(data, radius){
   searchLayers = [];
   refusedIds.clear();
 
-  // RED radius circle (attractive, clearly visible)
+  // RED radius circle — bold and clearly visible
   const circle = L.circle([searchPos.lat,searchPos.lon],{
-    radius, color:'#EF4444', fill:true, fillColor:'#EF4444', fillOpacity:.06,
-    weight:2, dashArray:'6,4'
+    radius,
+    color:'#DC2626',
+    fill:true,
+    fillColor:'#EF4444',
+    fillOpacity:0.10,
+    weight:3,
+    opacity:0.9
   }).addTo(mapSearch);
   searchLayers.push(circle);
 
@@ -1277,17 +1322,31 @@ function resetSearch(){
 // ── REC MAP (Recommend) ────────────────────────────
 function updateRecRadiusCircle(){
   if(!recPos) return;
-  const tp = state ? state.traffic_pressure : 1.0;
-  const radius = getModeRadius(selMode, tp);
+  const tp      = state ? state.traffic_pressure : 1.0;
+  const isDense = tp >= 1.3;
+  const radius  = getModeRadius(selMode, tp);  // hard cap — never exceeded
+  const rNormal = MODE_RADIUS[selMode].normal;
+  const rDense  = MODE_RADIUS[selMode].dense;
+
   if(recRadiusCircle) mapRec.removeLayer(recRadiusCircle);
   recRadiusCircle = L.circle([recPos.lat,recPos.lon],{
-    radius, color:'#2563EB', fill:true, fillColor:'#2563EB',
-    fillOpacity:0.05, weight:1.5, dashArray:'5,4'
+    radius,
+    color:'#2563EB',
+    fill:true,
+    fillColor:'#2563EB',
+    fillOpacity:0.07,
+    weight:2.5,
+    dashArray:'8,5',
+    opacity:0.9
   }).addTo(mapRec);
-  // Update UI
+
+  // Info pill: shows active radius + regime + mode limits
   document.getElementById('rec-radius-info').style.display='inline-flex';
   document.getElementById('rec-radius-val').textContent=radius;
-  document.getElementById('rec-regime').textContent=tp>=1.3?'dense':'normal';
+  document.getElementById('rec-regime').textContent=
+    isDense
+      ? `dense traffic — max ${rDense} m`
+      : `normal traffic — max ${rNormal} m`;
 }
 
 function initRecMap(){
