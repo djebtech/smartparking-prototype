@@ -1174,14 +1174,15 @@ function renderSearchResults(data, radius){
   searchLayers = [];
   refusedIds.clear();
 
-  // RED radius circle — bold and clearly visible
+  // Blue radius circle — matches recommend section style
   const circle = L.circle([searchPos.lat,searchPos.lon],{
     radius,
-    color:'#DC2626',
+    color:'#2563EB',
     fill:true,
-    fillColor:'#EF4444',
-    fillOpacity:0.10,
-    weight:3,
+    fillColor:'#2563EB',
+    fillOpacity:0.07,
+    weight:2.5,
+    dashArray:'8,5',
     opacity:0.9
   }).addTo(mapSearch);
   searchLayers.push(circle);
