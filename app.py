@@ -153,13 +153,36 @@ class SimState:
     def __init__(self):
         random.seed(42)
         self.step = 0
-        self.occupancy  = {pid: random.randint(3, int(info["cap"]*0.45)) for pid,info in PARKINGS.items()}
+        # FIX 1 — Seed initial occupancy proportional to zone traffic_score
+        # agent_1 (traffic 14367) → 55–75%, agent_2 (12783) → 45–65%,
+        # agent_3 (3624) → 28–48%, agent_4 (1154) → 12–28%
+        _occ_bands = {
+            "agent_1": (0.55, 0.75),
+            "agent_2": (0.45, 0.65),
+            "agent_3": (0.28, 0.48),
+            "agent_4": (0.12, 0.28),
+        }
+        self.occupancy = {}
+        for pid, info in PARKINGS.items():
+            lo, hi = _occ_bands[info["agent"]]
+            self.occupancy[pid] = random.randint(int(info["cap"] * lo), int(info["cap"] * hi))
         self.incoming   = {pid: random.randint(0,4)  for pid in PARKINGS}
         self.traffic_pressure = 1.0
         self.total_assigned   = 0
         self.recent_decisions = []
         self.reward_history   = []
         self.lock = threading.Lock()
+        # FIX 2 — Per-vehicle dynamic stay duration
+        # vehicle_durations[pid] = list of (arrival_step, stay_steps)
+        # At 2 s/tick: 450 ticks ≈ 15 min | 1 800 ≈ 60 min | 3 600 ≈ 120 min
+        self.vehicle_durations: dict = {}
+        for pid in PARKINGS:
+            occ = self.occupancy[pid]
+            # Seed pre-existing vehicles: random past arrival + random stay length
+            self.vehicle_durations[pid] = [
+                (-random.randint(0, 500), int(max(450, random.gauss(1800, 600))))
+                for _ in range(occ)
+            ]
 
     def free(self, pid):
         return max(0, PARKINGS[pid]["cap"] - self.occupancy[pid] - self.incoming[pid])
@@ -179,18 +202,47 @@ class SimState:
             elif 700 <= cycle <= 950:  self.traffic_pressure = 1.38 + random.uniform(0, .12)
             else:                      self.traffic_pressure = 1.00 + random.uniform(0, .15)
 
+            # Per-agent drift targets aligned with real traffic_score ranking
+            _drift = {
+                "agent_1": {"target": 0.65, "prob": 0.32, "inc": (1, 4)},  # busiest zone
+                "agent_2": {"target": 0.55, "prob": 0.24, "inc": (1, 3)},
+                "agent_3": {"target": 0.38, "prob": 0.16, "inc": (1, 3)},
+                "agent_4": {"target": 0.20, "prob": 0.10, "inc": (1, 2)},  # quietest zone
+            }
+
             for pid, info in PARKINGS.items():
                 cap = info["cap"]
-                occ = self.occupancy[pid]
-                if occ > 0 and random.random() < 0.10:
-                    self.occupancy[pid] = max(0, occ - random.randint(1, 3))
+                ag  = info["agent"]
+
+                # ── FIX 2a: Duration-based departures ──────────────────────
+                remaining = []
+                departed  = 0
+                for (arr, stay) in self.vehicle_durations[pid]:
+                    if self.step >= arr + stay:
+                        departed += 1
+                    else:
+                        remaining.append((arr, stay))
+                self.vehicle_durations[pid] = remaining
+                if departed:
+                    self.occupancy[pid] = max(0, self.occupancy[pid] - departed)
+
+                # ── FIX 2b: Arrivals with individual random stay duration ──
                 if self.free(pid) > 1 and random.random() < 0.13:
-                    self.occupancy[pid] = min(cap, self.occupancy[pid] + random.randint(1, 4))
-                # MOD 2 — Bonus de Repeuplement: drift Agent 1 toward ~40% occupation
-                if info["agent"] == "agent_1":
-                    target = int(cap * 0.40)
-                    if self.occupancy[pid] < target and random.random() < 0.18:
-                        self.occupancy[pid] = min(target, self.occupancy[pid] + random.randint(1, 2))
+                    n = min(random.randint(1, 4), self.free(pid))
+                    self.occupancy[pid] = min(cap, self.occupancy[pid] + n)
+                    for _ in range(n):
+                        # Each vehicle gets its own stay length: ~15–120 min
+                        stay_ticks = int(max(450, random.gauss(1800, 600)))
+                        self.vehicle_durations[pid].append((self.step, stay_ticks))
+
+                # ── FIX 1: Drift toward traffic-proportional occupancy ─────
+                d      = _drift[ag]
+                target = int(cap * d["target"])
+                if self.occupancy[pid] < target and random.random() < d["prob"]:
+                    self.occupancy[pid] = min(target, self.occupancy[pid] + random.randint(*d["inc"]))
+                elif self.occupancy[pid] > target + int(cap * 0.15) and random.random() < 0.08:
+                    self.occupancy[pid] = max(target, self.occupancy[pid] - random.randint(1, 2))
+
                 self.incoming[pid] = max(0, random.randint(0, max(1, self.free(pid)//3)))
 
 sim = SimState()
@@ -309,6 +361,9 @@ class LocalUpdateBody(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # LEGACY API ROUTES  (unchanged — keeps existing frontend working)
 # ─────────────────────────────────────────────────────────────────────────────
+@app.get("/login")
+def login_page(): return FileResponse("static/login.html")
+
 @app.get("/")
 def root(): return FileResponse("static/index.html")
 
