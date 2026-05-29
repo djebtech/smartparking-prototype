@@ -343,7 +343,7 @@ class SearchBody(BaseModel):
     lat: float
     lon: float
     rayon_recherche: float = 500.0   # meters
-    prix_max: float = 7.0            # €/h
+    prix_max: float = 5.0            # €/h  (range 3–7)
     mode: str = "balanced"
 
 class ReservationBody(BaseModel):
