@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SmartParking AI — Edge V2X</title>
+<title>MADINA — Edge V2X</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
@@ -64,12 +64,17 @@ body{
 }
 .nav-brand{display:flex;align-items:center;gap:14px}
 .nav-logo{
-  width:32px;height:32px;
-  background:var(--blue);
+  width:36px;height:36px;
   border-radius:8px;
+  overflow:hidden;
+  flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  font-family:var(--mono);font-size:13px;font-weight:600;color:#fff;
-  flex-shrink:0
+  background:#fff
+}
+.nav-logo img{
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block
 }
 .nav-title{
   display:flex;flex-direction:column;gap:1px
@@ -550,9 +555,9 @@ input[type=range]::-moz-range-thumb{
 ══════════════════════════════════════════════════ -->
 <nav id="navbar">
   <div class="nav-brand">
-    <div class="nav-logo">SP</div>
+    <div class="nav-logo"><img src="/static/logo.jpeg" alt="MADINA"/></div>
     <div class="nav-title">
-      <h1>SmartParking AI</h1>
+      <h1>MADINA</h1>
       <p>Edge V2X · Dueling DQN · Federated Learning</p>
     </div>
   </div>

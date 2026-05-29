@@ -20,10 +20,14 @@ import math, random, time, threading, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-app = FastAPI(title="SmartParking AI — Edge V2X")
+app = FastAPI(title="MADINA — Edge V2X")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-Path("static").mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Use absolute path so Railway / any deployment finds the static folder correctly
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STATIC DATA  (from config + XML files of the real project)
@@ -362,10 +366,10 @@ class LocalUpdateBody(BaseModel):
 # LEGACY API ROUTES  (unchanged — keeps existing frontend working)
 # ─────────────────────────────────────────────────────────────────────────────
 @app.get("/login")
-def login_page(): return FileResponse("static/login.html")
+def login_page(): return FileResponse(str(STATIC_DIR / "login.html"))
 
 @app.get("/")
-def root(): return FileResponse("static/index.html")
+def root(): return FileResponse(str(STATIC_DIR / "index.html"))
 
 @app.get("/api/config")
 def config():
