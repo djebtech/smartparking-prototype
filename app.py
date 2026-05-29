@@ -462,24 +462,45 @@ def fl_data(): return JSONResponse(FL_HISTORY)
 def search(b: SearchBody):
     mode = b.mode if b.mode in ["close","cheap","balanced"] else "balanced"
     tp   = sim.traffic_pressure
+    TARGET_K = 5   # always return exactly 5 recommendations
 
-    # 1. Filtrage: parkings dans le rayon ET sous le prix maximum
+    # 1. Premier passage : parkings dans le rayon ET sous le prix maximum
     candidates = []
     for pid, info in PARKINGS.items():
         if sim.free(pid) <= 0: continue
         if sim.pred_ratio(pid) >= 0.99: continue
         dist  = haversine(b.lat, b.lon, info["lat"], info["lon"])
-        if dist > b.rayon_recherche: continue
         price = dyn_price(pid, mode, tp)
-        if price > b.prix_max: continue
-        candidates.append((pid, info, dist, price))
+        in_radius = dist <= b.rayon_recherche
+        in_budget = price <= b.prix_max
+        candidates.append((pid, info, dist, price, in_radius, in_budget))
 
-    if not candidates:
+    # 2. Fallback progressif pour garantir exactement TARGET_K résultats
+    #    Priorité 1 : dans le rayon + dans le budget
+    #    Priorité 2 : hors rayon mais dans le budget  (on élargit le rayon)
+    #    Priorité 3 : dans le rayon mais hors budget  (on ignore le prix)
+    #    Priorité 4 : tous les parkings disponibles   (dernier recours)
+    def build_pool(pool_filter):
+        return [(pid, info, dist, price)
+                for pid, info, dist, price, ir, ib in candidates
+                if pool_filter(ir, ib)]
+
+    pool = build_pool(lambda ir, ib: ir and ib)
+    if len(pool) < TARGET_K:
+        pool = build_pool(lambda ir, ib: ib)          # ignore radius
+    if len(pool) < TARGET_K:
+        pool = build_pool(lambda ir, ib: ir)          # ignore price
+    if len(pool) < TARGET_K:
+        pool = build_pool(lambda ir, ib: True)        # ignore both
+
+    if not pool:
         return JSONResponse({
             "winner": None, "clusters": [], "top_k": [],
-            "message": "Aucun parking disponible dans ce rayon avec ce prix maximum.",
+            "message": "No parking available in the system.",
             "search_params": {"rayon_m": b.rayon_recherche, "prix_max": b.prix_max, "mode": mode},
         })
+
+    candidates = pool
 
     # 2. K-Means clustering sur les positions filtrées
     n_agents_present = len(set(info["agent"] for _, info, _, _ in candidates))
@@ -509,7 +530,7 @@ def search(b: SearchBody):
             "size": n,
         })
 
-    # 3. Pré-sélection Top-K (stratégie DQN candidate scoring)
+    # 3. Scoring DQN sur tous les candidats disponibles → toujours top 5
     scored = []
     for pid, info, dist, price in candidates:
         sc, p = candidate_score(pid, dist, mode, tp)
@@ -523,13 +544,14 @@ def search(b: SearchBody):
             "score": round(sc, 4),
         })
     scored.sort(key=lambda x: x["score"])
-    top_k = scored[:5]
+    top_k = scored[:TARGET_K]   # exactly 5 (or all available if < 5 parkings total)
 
     # 4. Décision DQN: re-scoring avec la fonction de récompense utilisateur
-    #    Récompense = utilité_prix + utilité_distance − pénalité_score_DQN
+    prix_ref = max(b.prix_max, max((c["price"] for c in top_k), default=1.0))
+    dist_ref = max(b.rayon_recherche, max((c["distance_m"] for c in top_k), default=1.0))
     def dqn_reward(c):
-        price_util = 1.0 - (c["price"] / b.prix_max)
-        dist_util  = 1.0 - min(c["distance_m"] / b.rayon_recherche, 1.0)
+        price_util = 1.0 - (c["price"] / prix_ref)
+        dist_util  = 1.0 - min(c["distance_m"] / dist_ref, 1.0)
         return 0.5 * price_util + 0.5 * dist_util - 0.3 * c["score"]
 
     winner = max(top_k, key=dqn_reward) if top_k else None
